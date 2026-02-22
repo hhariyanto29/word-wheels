@@ -33,436 +33,335 @@ impl Level {
 
     fn get(level_num: usize) -> Self {
         match level_num {
-            // Level 1: 4 words, 5 letters, grid 5x5
-            // Letters: C A T S E
-            //   C A T  (0,1) across
-            //   A      (0,1) down -> A,C,E
-            //   A C E  (1,0) across
-            //   S A T  (2,0) across  -- shares A at (2,1) but wait...
-            // Simpler layout:
-            //   C A T    row0, col0 across
-            //   A        col0 down: C,A,S,E (but only CAT at top)
-            //   S E T    row2, col0 across
-            //   A C E    row1, col1 across
-            // Let me do a clean small grid:
+            // ============================================================
+            // Level 1 (Easy): 4 words, 4 letters, grid 5x5
+            // Letters: E A T S
             //
-            //  Grid 4x4:
-            //  row0: C A T .
-            //  row1: . C . .
-            //  row2: . E . .
-            //  row3: S E T .
+            //  . . . . .
+            //  . E A T .    EAT across (1,1)
+            //  . . T . .    ATE down: A(1,2) T(2,2) E(3,2)
+            //  S E T . .    SET across (3,0) shares T(3,2)? no, SET is S(3,0)E(3,1)T(3,2) -- shares T!? wait ATE has E(3,2). T!=E conflict
             //
-            //  CAT across (0,0), ACE down (0,1), SET across (3,0),
-            //  but ACE down from (0,1): A(0,1) C(1,1) E(2,1) - ok
-            //  SET across (3,0): S(3,0) E(3,1) T(3,2)
-            //  We need E(3,1) to connect - ACE is only 3 long ending at (2,1)
-            //  Add: SEA? No. Let's keep it simple:
+            // Fix: ATE down from (1,2): A(1,2) T(2,2) E(3,2)
+            //      SEA across (3,0): S(3,0) E(3,1) A(3,2) -- E(3,2) from ATE vs A(3,2) from SEA. conflict!
             //
-            //  Grid 4x3:
-            //  row0: C A T
-            //  row1: . C .
-            //  row2: . E .
-            //
-            //  CAT across(0,0), ACE down(0,1)
-            //  Need more words. Add: ATE down from (0,2): A? no T(0,2) A(1,2) E(2,2) = TAE? no
-            //
-            // Let me use a proven simple layout:
-            //  Grid 5x4:
-            //  . C . .
-            //  . A . .
-            //  . T . .     CAT down (0,1)
-            //  S A T .     SAT across (3,0), shares A at (3,1)
-            //  . . E .
-            //
-            // Hmm this doesn't intersect well. Let me just do clean designs:
+            // Clean design:
+            //  . . . . .
+            //  . S E A .    SEA across (1,1): S(1,1) E(1,2) A(1,3)
+            //  . . A . .    EAT down: E(1,2) A(2,2) T(3,2)
+            //  . . T . .
+            //  S E T . .    SET across (4,0) shares T? SET: S(4,0) E(4,1) T(4,2). ATE has T(3,2) not (4,2). No share.
+            //               But we want intersection! ATE goes (1,2)(2,2)(3,2). SET at (3,0): S(3,0)E(3,1)T(3,2) shares T(3,2)!
+            //               But ATE down has T at (3,2)? EAT down: E(1,2) A(2,2) T(3,2). SET: T(3,2). Match!
             1 => Self {
-                // Level 1: Easy - 4 words, 5 letters
-                // Grid 4x4:
-                //  A T . .    AT across (0,0)
-                //  T . . .
-                //  E A T .    EAT across (2,0)
-                //  A . . .
-                //  T E A .    TEA across (4,0)
-                //
-                // Simpler approach - just intersecting words:
-                //  . E A T      EAT across (0,1)
-                //  . A . .
-                //  . T . .      EAT down (0,1) = E,A,T
-                //  T E A .      TEA across (2,0) shares E at (2,1)
-                //
-                // Grid 3x4:
-                //  . E A T      row0: EAT across col1
-                //  . A . .      row1: col1 = A (part of EAT down)
-                //  T E A .      row2: TEA across col0, shares E at (2,1)
-                //
-                // EAT across (0,1): E(0,1) A(0,2) T(0,3)
-                // EAT down (0,1): E(0,1) A(1,1) T(2,1) -- shares E(0,1) with across
-                // TEA across (2,0): T(2,0) E(2,1) A(2,2) -- shares T at (2,1) with EAT down? No, EAT down has T(2,1), TEA has E(2,1). Conflict!
-                // Fix: TEA across (2,0): T(2,0) E(2,1) A(2,2). EAT down: E(0,1) A(1,1) T(2,1). T(2,1) vs E(2,1) - different cols, ok!
-                // Wait (2,1): EAT down puts T at (2,1). TEA across puts E at (2,1). CONFLICT.
-                //
-                // Fix layout:
-                // EAT across (0,1): E(0,1) A(0,2) T(0,3)
-                // ATE down (0,2): A(0,2) T(1,2) E(2,2) -- shares A(0,2)
-                // SET across (1,0): S(1,0) E(1,1) T(1,2) -- shares T(1,2) with ATE down
-                // SEA down (1,0): S(1,0) E(2,0) A(3,0)
-                rows: 4,
-                cols: 4,
-                letters: vec!['E', 'A', 'T', 'S'],
-                words: vec![
-                    PlacedWord { word: "EAT".into(), row: 0, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "ATE".into(), row: 0, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "SET".into(), row: 1, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "SEA".into(), row: 1, col: 0, dir: Dir::Down },
-                ],
-            },
-
-            // Level 2: 5 words, 5 letters
-            // Letters: R A N E G
-            // Words: RAN, AGE, RANG, ERA, NEAR
-            // Grid 5x5:
-            //  R A N . .    RAN across (0,0)
-            //  . G . . .
-            //  . E R A .    ERA across (2,1)
-            //  . . A . .
-            //  . . N . .    RAN down (0,2)? R(0,2)=N conflict
-            //
-            // Clean layout:
-            //  R A N G E    RANGE across (0,0) - 5 letters, too many
-            // Keep it 5 words with simple crosses:
-            //  A G E . .    AGE across (0,0)
-            //  . E . . .
-            //  R A N . .    RAN across (2,0)
-            //  . R . . .
-            //
-            // AGE across (0,0): A(0,0) G(0,1) E(0,2)
-            // GEAR down (0,1): G(0,1) E(1,1) A(2,1) R(3,1) -- shares G(0,1)
-            // RAN across (2,0): R(2,0) A(2,1) N(2,2) -- shares A(2,1) with GEAR
-            // ERA across (1,0): E(1,0) R(1,1)... R(1,1) but GEAR has E(1,1). Conflict.
-            //
-            // Simpler:
-            // AGE across (0,0): A(0,0) G(0,1) E(0,2)
-            // ARE down (0,0): A(0,0) R(1,0) E(2,0)
-            // EARN across (1,0)? no too complex
-            // RAN across (1,0): R(1,0) A(1,1) N(1,2) -- shares R(1,0) with ARE
-            // ERA across (2,0): E(2,0) R(2,1) A(2,2) -- shares E(2,0) with ARE
-            2 => Self {
-                rows: 3,
-                cols: 3,
-                letters: vec!['A', 'G', 'E', 'R', 'N'],
-                words: vec![
-                    PlacedWord { word: "AGE".into(), row: 0, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "ARE".into(), row: 0, col: 0, dir: Dir::Down },
-                    PlacedWord { word: "RAN".into(), row: 1, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "ERA".into(), row: 2, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "GEN".into(), row: 0, col: 1, dir: Dir::Down },
-                ],
-            },
-
-            // Level 3: 5 words, 6 letters
-            // Letters: S T O P R E
-            // Grid 5x5:
-            // STOP across (0,0): S(0,0) T(0,1) O(0,2) P(0,3)
-            // TOP down (0,1)? T(0,1) O(1,1) P(2,1)
-            // ROPE across (2,0): R(2,0) O(2,1)... O conflicts with P(2,1)
-            //
-            // STOP across (0,0): S T O P
-            // SORE down (0,0): S(0,0) O(1,0) R(2,0) E(3,0)
-            // ORE across (1,0): O(1,0) R(1,1) E(1,2) - shares O with SORE
-            // POET down (0,3): P(0,3) O(1,3) E(2,3) T(3,3)
-            // REST across (3,0): R(3,0)... SORE has E(3,0). conflict
-            // TORE across (2,0)? no, SORE has R(2,0)
-            // PER across (2,2): P(2,2) E(2,3) R(2,4) -- shares E(2,3) with POET
-            // ROPE across (3,0): R(3,0)... E(3,0) from SORE? no, 3,0 not in SORE. SORE: S(0,0) O(1,0) R(2,0) E(3,0). Yes E at (3,0).
-            //
-            // Let me simplify:
-            // TOPS across (0,0): T(0,0) O(0,1) P(0,2) S(0,3)
-            // TORE down (0,0): T(0,0) O(1,0) R(2,0) E(3,0)
-            // ORE across (1,0): shares O(1,0) -- O(1,0) R(1,1) E(1,2)
-            // POSE across (2,1): P(2,1) O(2,2) S(2,3) E(2,4) -- no intersection needed but grid gets big
-            //
-            // Cleaner 4x5:
-            // STOP across (0,1): S(0,1) T(0,2) O(0,3) P(0,4)
-            // SORE down (0,1): S(0,1) O(1,1) R(2,1) E(3,1)
-            // ORE across (1,0)? P(1,0)?
-            // PORT across (1,1)? O(1,1) already from SORE
-            // TORE down (0,2): T(0,2) O(1,2) R(2,2) E(3,2) --
-            // POET across (3,0): P(3,0) O(3,1)... E(3,1) from SORE != O. conflict
-            //
-            // I'll take a more systematic approach:
-            3 => Self {
                 rows: 5,
                 cols: 5,
-                letters: vec!['S', 'T', 'O', 'P', 'R', 'E'],
+                letters: vec!['E', 'A', 'T', 'S'],
                 words: vec![
-                    // STOP across (0,0): S(0,0) T(0,1) O(0,2) P(0,3)
-                    PlacedWord { word: "STOP".into(), row: 0, col: 0, dir: Dir::Across },
-                    // SORE down (0,0): S(0,0) O(1,0) R(2,0) E(3,0)
-                    PlacedWord { word: "SORE".into(), row: 0, col: 0, dir: Dir::Down },
-                    // TORE down (0,1): T(0,1) O(1,1) R(2,1) E(3,1)
-                    PlacedWord { word: "TORE".into(), row: 0, col: 1, dir: Dir::Down },
-                    // PERT across (3,0)? E(3,0) from SORE. P(3,0) != E. Nope.
-                    // REST across (2,0): R(2,0) E(2,1)... R(2,1) from TORE != E. Conflict.
-                    // ROPE across (2,0): R(2,0) O(2,1)... TORE has R(2,1) not O. Conflict.
-                    // OPT across (1,1): O(1,1) P(1,2) T(1,3) -- shares O(1,1) with TORE
-                    PlacedWord { word: "OPT".into(), row: 1, col: 1, dir: Dir::Across },
-                    // PET down (0,3): P(0,3) E(1,3)... OPT has T(1,3). conflict
-                    // POT down (1,2): P(1,2) O(2,2) T(3,2) -- shares P(1,2) with OPT
-                    PlacedWord { word: "POT".into(), row: 1, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "SEA".into(), row: 1, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "EAT".into(), row: 1, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "SET".into(), row: 3, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "ATE".into(), row: 2, col: 2, dir: Dir::Across },
                 ],
             },
 
-            // Level 4: 6 words, 6 letters (original level)
-            4 => Self {
+            // ============================================================
+            // Level 2: 5 words, 5 letters, grid 6x6
+            // Letters: A G E R N
+            //
+            //  . . . . . .
+            //  . A G E . .    AGE across (1,1)
+            //  . . E . . .    GEN down: G(1,2) E(2,2) N(3,2)
+            //  R A N . . .    RAN across (3,0) shares N(3,2)? RAN: R(3,0) A(3,1) N(3,2). GEN has N(3,2). Match!
+            //  . . . . . .
+            //  . . . E R A    ERA across (5,3)
+            2 => Self {
                 rows: 6,
                 cols: 6,
+                letters: vec!['A', 'G', 'E', 'R', 'N'],
+                words: vec![
+                    PlacedWord { word: "AGE".into(), row: 1, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "GEN".into(), row: 1, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "RAN".into(), row: 3, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "ERA".into(), row: 5, col: 3, dir: Dir::Across },
+                    PlacedWord { word: "ARE".into(), row: 3, col: 1, dir: Dir::Down },
+                ],
+            },
+
+            // ============================================================
+            // Level 3: 5 words, 6 letters, grid 7x7
+            // Letters: S T O P R E
+            //
+            //  . . . . . . .
+            //  . . S T O P .    STOP across (1,2)
+            //  . . . O . . .    TORE down: T(1,3) O(2,3) R(3,3) E(4,3)
+            //  . . . R . . .
+            //  P O T E . . .    POTE? no. POT across (4,0): P(4,0) O(4,1) T(4,2). TORE has E(4,3).
+            //  . . . . . . .    OPT? ROPE?
+            //
+            // Cleaner:
+            //  . . . . . . .
+            //  . . T O P . .    TOP across (1,2)
+            //  . . . R . . .    ORE down: O(1,3) R(2,3) E(3,3)
+            //  . P O S E . .    POSE across (3,1) shares? no S not E at (3,3). POSE: P(3,1)O(3,2)S(3,3)E(3,4). ORE has E(3,3). S!=E conflict.
+            //
+            // Simpler scattered layout:
+            //  . . . . . . .
+            //  . . R O P E .    ROPE across (1,2): R(1,2) O(1,3) P(1,4) E(1,5)
+            //  . . . . O . .    POT down: P(1,4) O(2,4) T(3,4)
+            //  . S T O P . .    STOP across (3,1): S(3,1) T(3,2) O(3,3) P(3,4). POT has T(3,4). P!=T conflict.
+            //
+            // OK just do it carefully:
+            //  . . . . . . .
+            //  . R O P E . .    ROPE across (1,1)
+            //  . . . E . . .    PET down: P(1,3) E(2,3) T(3,3)
+            //  . S O T . . .    No...
+            //
+            // Simple verified:
+            //  . S . . . .
+            //  . T . . . .      STEP down: S(0,1) T(1,1) E(2,1) P(3,1)
+            //  . E . . . .
+            //  R O P E . .      ROPE across (3,0) shares? P(3,1) from STEP. But ROPE: R(3,0) O(3,1) P(3,2) E(3,3). O(3,1) vs P(3,1) conflict
+            //
+            // Final clean:
+            3 => Self {
+                rows: 7,
+                cols: 7,
+                letters: vec!['S', 'T', 'O', 'P', 'R', 'E'],
+                words: vec![
+                    // ROPE across (1,2): R(1,2) O(1,3) P(1,4) E(1,5)
+                    PlacedWord { word: "ROPE".into(), row: 1, col: 2, dir: Dir::Across },
+                    // ORE down (1,3): O(1,3) R(2,3) E(3,3)
+                    PlacedWord { word: "ORE".into(), row: 1, col: 3, dir: Dir::Down },
+                    // STOP across (3,0): S(3,0) T(3,1) O(3,2) P(3,3). ORE has E(3,3). P!=E conflict!
+                    // STEP across (3,1): S(3,1) T(3,2) E(3,3) P(3,4). ORE has E(3,3). Match!
+                    PlacedWord { word: "STEP".into(), row: 3, col: 1, dir: Dir::Across },
+                    // POT across (5,0): P(5,0) O(5,1) T(5,2)
+                    PlacedWord { word: "POT".into(), row: 5, col: 0, dir: Dir::Across },
+                    // SORT down (3,1): S(3,1) O(4,1) R(5,1) T(6,1). POT has O(5,1). R!=O conflict!
+                    // TOP across (5,3): T(5,3) O(5,4) P(5,5)
+                    PlacedWord { word: "TOP".into(), row: 5, col: 3, dir: Dir::Across },
+                ],
+            },
+
+            // ============================================================
+            // Level 4: 6 words, 6 letters, grid 7x7
+            // Letters: L E S S Y T  (original, already has good scattered layout)
+            4 => Self {
+                rows: 7,
+                cols: 7,
                 letters: vec!['L', 'E', 'S', 'S', 'Y', 'T'],
                 words: vec![
+                    // L down (0,2): starts LESS across
                     PlacedWord { word: "LESS".into(), row: 0, col: 2, dir: Dir::Across },
                     PlacedWord { word: "LET".into(), row: 0, col: 2, dir: Dir::Down },
                     PlacedWord { word: "YET".into(), row: 2, col: 0, dir: Dir::Across },
                     PlacedWord { word: "YES".into(), row: 2, col: 0, dir: Dir::Down },
-                    PlacedWord { word: "STYLE".into(), row: 4, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "SET".into(), row: 5, col: 2, dir: Dir::Across },
+                    PlacedWord { word: "STYLE".into(), row: 4, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "SET".into(), row: 5, col: 3, dir: Dir::Across },
                 ],
             },
 
-            // Level 5: 6 words, 6 letters
+            // ============================================================
+            // Level 5: 6 words, 6 letters, grid 7x7
             // Letters: H O M E S T
-            // HOMES, THOSE, MOTH, SOME, HOST, THE
-            // Grid 5x5:
-            // HOME across (0,0): H(0,0) O(0,1) M(0,2) E(0,3)
-            // HOST down (0,0): H(0,0) O(1,0) S(2,0) T(3,0)
-            // SOME across (2,0): S(2,0) O(2,1) M(2,2) E(2,3) -- shares S(2,0) with HOST
-            // MET down (0,2)? M(0,2) E(1,2) T(2,2)... SOME has M(2,2) and MET has T(2,2). conflict
-            // OEM? no
-            // THE across (3,0): T(3,0) H(3,1) E(3,2) -- shares T(3,0) with HOST
-            // MOTH down (0,2): M(0,2) O(1,2) T(2,2) H(3,2)... SOME has M(2,2), MOTH has T(2,2). Conflict.
-            // MET down (0,2): M(0,2) E(1,2) T(2,2). SOME has M(2,2). Conflict.
-            // OE down (0,3): nah too short.
-            // Let me shift SOME: SOME across (2,0) -> S O M E at positions (2,0)(2,1)(2,2)(2,3)
-            // MET down (0,3): E(0,3) ... that's E not M.
-            // POEM? no P.
-            // THEM down (3,0)? starts at row3. too low.
-            // Simple fix:
-            // HOME across (0,1): H(0,1) O(0,2) M(0,3) E(0,4)
-            // HOT down (0,1): H(0,1) O(1,1) T(2,1)
-            // SOME across (1,1): ... no, starts at (1,1) with S but HOT has O(1,1).
-            // TOMES across (2,0): T(2,0) O(2,1) M(2,2) E(2,3) S(2,4)
-            //   HOT shares T(2,1)? HOT: H(0,1) O(1,1) T(2,1). TOMES: O(2,1). T!=O conflict.
             //
-            // Let me just do a simpler proven layout:
+            //  . . . . . . .
+            //  . . H O M E .    HOME across (1,2)
+            //  . . O . . . .    HOST down: H(1,2) O(2,2) S(3,2) T(4,2)
+            //  . . S O M E .    SOME across (3,2)? S(3,2) O(3,3) M(3,4) E(3,5). HOST has S(3,2). Match!
+            //  M E T . . . .    MET across (4,0). HOST has T(4,2). MET: M(4,0) E(4,1) T(4,2). Match!
+            //  . . . . . . .
+            //  . T H E . . .    THE across (6,1)
             5 => Self {
-                rows: 5,
-                cols: 5,
+                rows: 7,
+                cols: 7,
                 letters: vec!['H', 'O', 'M', 'E', 'S', 'T'],
                 words: vec![
-                    // HOME across (0,0): H O M E
-                    PlacedWord { word: "HOME".into(), row: 0, col: 0, dir: Dir::Across },
-                    // HOST down (0,0): H O S T
-                    PlacedWord { word: "HOST".into(), row: 0, col: 0, dir: Dir::Down },
-                    // SOME across (2,0): S O M E -- shares S(2,0) with HOST
-                    PlacedWord { word: "SOME".into(), row: 2, col: 0, dir: Dir::Across },
-                    // THE across (3,0): T H E -- shares T(3,0) with HOST
-                    PlacedWord { word: "THE".into(), row: 3, col: 0, dir: Dir::Across },
-                    // OMS down (0,1)? O M S? not a word.
-                    // OME down? no
-                    // MET down (0,2): M(0,2) E(1,2) T(2,2). SOME has M(2,2). M!=T conflict.
-                    // OE down (1,1)? too short
-                    // MET across (1,2)? M(1,2) E(1,3) T(1,4)
-                    PlacedWord { word: "MET".into(), row: 1, col: 2, dir: Dir::Across },
-                    // STEM across (4,0)? need more intersections
-                    // TOE across (3,2): no, THE is at row3 col0-2, so E at (3,2). TOE: T(3,2) conflict with E(3,2)
-                    // MOT down (0,2): M(0,2) O(1,2)... MET has M(1,2). conflict.
-                    // Just add MOTH or THOSE... tricky. Keep 5 words for this level.
-                    PlacedWord { word: "TOES".into(), row: 3, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "HOME".into(), row: 1, col: 2, dir: Dir::Across },
+                    PlacedWord { word: "HOST".into(), row: 1, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "SOME".into(), row: 3, col: 2, dir: Dir::Across },
+                    PlacedWord { word: "MET".into(), row: 4, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "THE".into(), row: 6, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "TOES".into(), row: 4, col: 2, dir: Dir::Down },
                 ],
             },
 
-            // Level 6: 7 words, 6 letters
+            // ============================================================
+            // Level 6: 6 words, 6 letters, grid 7x7
             // Letters: B R I C K S
-            // Words: BRICK, RISK, SICK, RIBS, SIR, IRK
+            //
+            //  . . . . . . .
+            //  . B R I C K .    BRICK across (1,1)
+            //  . . I . . . .    RIB down: R(1,2) I(2,2) B(3,2)
+            //  . . B . S I R    SIR across (3,4)
+            //  . . . . K . .    SKI down: S(3,4) K(4,4) I(5,4)
+            //  R I S K . I .    RISK across (5,0). SKI has I(5,4). Match!
+            //  . . . . . . .
             6 => Self {
-                rows: 6,
-                cols: 6,
+                rows: 7,
+                cols: 7,
                 letters: vec!['B', 'R', 'I', 'C', 'K', 'S'],
                 words: vec![
-                    // BRICK across (0,0): B R I C K
-                    PlacedWord { word: "BRICK".into(), row: 0, col: 0, dir: Dir::Across },
-                    // RIBS down (0,1): R(0,1) I(1,1) B(2,1) S(3,1)
-                    PlacedWord { word: "RIBS".into(), row: 0, col: 1, dir: Dir::Down },
-                    // ICK across (1,1): I(1,1) C(1,2) K(1,3) -- shares I(1,1)
-                    PlacedWord { word: "ICK".into(), row: 1, col: 1, dir: Dir::Across },
-                    // SIR across (3,0): S(3,0) I(3,1)... RIBS has S(3,1). S!=I conflict.
-                    // SIR across (3,1): S(3,1) I(3,2) R(3,3) -- shares S(3,1) with RIBS
-                    PlacedWord { word: "SIR".into(), row: 3, col: 1, dir: Dir::Across },
-                    // RISK down (0,2): no, BRICK has I(0,2). RISK: R I S K. R!=I conflict.
-                    // IRK down (0,2): I(0,2) R(1,2)... ICK has C(1,2). conflict.
-                    // CRIBS? no second B
-                    // SKI across (2,0): S(2,0) K(2,1)... RIBS has B(2,1). conflict.
-                    // IRKS down (0,2): I(0,2) R(1,2)... ICK: C(1,2). conflict.
-                    // SICK down (0,3)? C from BRICK at (0,3). SICK: S I C K. S!=C conflict.
-                    // CIS down (1,2): C(1,2) I(2,2) S(3,2). ICK has C(1,2) -- shares! SIR has I(3,2). S!=I conflict.
-                    // Keep it cleaner:
-                    PlacedWord { word: "RISK".into(), row: 2, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "SKI".into(), row: 4, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "BRICK".into(), row: 1, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "RIB".into(), row: 1, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "SIR".into(), row: 3, col: 4, dir: Dir::Across },
+                    PlacedWord { word: "SKI".into(), row: 3, col: 4, dir: Dir::Down },
+                    PlacedWord { word: "RISK".into(), row: 5, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "ICK".into(), row: 2, col: 4, dir: Dir::Across },
                 ],
             },
 
-            // Level 7: 7 words, 7 letters
+            // ============================================================
+            // Level 7: 7 words, 7 letters, grid 8x8
             // Letters: P L A N E T S
-            // Words: PLAN, PLANET, PANT, LANE, SLANT, NET, TAN
+            //
+            //  . . . . . . . .
+            //  . . P L A N E T    PLANET across (1,2)
+            //  . . L . . . . .    PLAN down: P(1,2) L(2,2) A(3,2) N(4,2)
+            //  . . A . . . . .
+            //  L A N E . . . .    LANE across (4,0) shares N(4,2)? LANE: L(4,0) A(4,1) N(4,2) E(4,3). PLAN has N(4,2). Match!
+            //  . N . . . . . .    ANTE down: A(4,1) N(5,1) T(6,1) E(7,1)
+            //  . T E N . . . .    TEN across (6,1): T(6,1) E(6,2) N(6,3). ANTE has T(6,1). Match!
+            //  . E . . . . . .
             7 => Self {
-                rows: 7,
-                cols: 7,
-                letters: vec!['P', 'L', 'A', 'N', 'E', 'T', 'S'],
-                words: vec![
-                    // PLANET across (0,0): P L A N E T
-                    PlacedWord { word: "PLANET".into(), row: 0, col: 0, dir: Dir::Across },
-                    // PLAN down (0,0): P(0,0) L(1,0) A(2,0) N(3,0)
-                    PlacedWord { word: "PLAN".into(), row: 0, col: 0, dir: Dir::Down },
-                    // LANE across (1,0): L(1,0) A(1,1) N(1,2) E(1,3) -- shares L(1,0)
-                    PlacedWord { word: "LANE".into(), row: 1, col: 0, dir: Dir::Across },
-                    // ANTE down (1,1): A(1,1) N(2,1) T(3,1) E(4,1) -- shares A(1,1)
-                    PlacedWord { word: "ANTE".into(), row: 1, col: 1, dir: Dir::Down },
-                    // NET across (3,0): N(3,0) E(3,1)... ANTE has T(3,1). conflict.
-                    // TAN across (3,0): no, PLAN has N(3,0). TAN: T A N, T!=N.
-                    // NET across (4,0): N(4,0) E(4,1)... ANTE has E(4,1). shares E!
-                    PlacedWord { word: "NET".into(), row: 4, col: 0, dir: Dir::Across },
-                    // SLANT across (2,0): S? A(2,0) from PLAN. S!=A conflict.
-                    // PEN down (0,4)? PLANET has E(0,4). PEN: P E N. P!=E conflict.
-                    // NETS down (4,0)? N(4,0) E(5,0) T(6,0) S(7,0) -- out of grid
-                    // PANT down -- already have PLAN
-                    // TEN across (3,1): T(3,1) E(3,2) N(3,3) -- ANTE has T(3,1). shares!
-                    PlacedWord { word: "TEN".into(), row: 3, col: 1, dir: Dir::Across },
-                    // NETS across (4,0): N E T S
-                    PlacedWord { word: "NETS".into(), row: 5, col: 0, dir: Dir::Across },
-                ],
-            },
-
-            // Level 8: 8 words, 7 letters
-            // Letters: C R A N E S D
-            // CRANES, DANCE, SCAR, REND, CARES, DARN, DENS, ACNE
-            8 => Self {
-                rows: 7,
-                cols: 7,
-                letters: vec!['C', 'R', 'A', 'N', 'E', 'S', 'D'],
-                words: vec![
-                    // CRANE across (0,0): C R A N E
-                    PlacedWord { word: "CRANE".into(), row: 0, col: 0, dir: Dir::Across },
-                    // CARED down (0,0): C(0,0) A(1,0) R(2,0) E(3,0) D(4,0)
-                    PlacedWord { word: "CARED".into(), row: 0, col: 0, dir: Dir::Down },
-                    // AND across (1,0): A(1,0) N(1,1) D(1,2) -- shares A(1,0)
-                    PlacedWord { word: "AND".into(), row: 1, col: 0, dir: Dir::Across },
-                    // REND down (0,1): R(0,1) E(1,1)... AND has N(1,1). R,E,N... REND: R E N D. E(1,1)!=N. conflict.
-                    // NED down (1,1): N(1,1) E(2,1) D(3,1) -- shares N(1,1) with AND
-                    PlacedWord { word: "DENS".into(), row: 1, col: 1, dir: Dir::Down },
-                    // RED across (2,0): R(2,0) E(2,1) D(2,2) -- shares R(2,0), shares E(2,1) with DENS? DENS: N(1,1) E(2,1) -- yes!
-                    PlacedWord { word: "RED".into(), row: 2, col: 0, dir: Dir::Across },
-                    // RACED? no.
-                    // SCARE across (3,0)? E(3,0) from CARED. SCARE: S C A R E. S!=E. conflict.
-                    // END across (3,0): E(3,0) N(3,1) D(3,2) -- shares E(3,0) with CARED
-                    // DENS has N(3,1)? DENS down from (1,1): N(1,1) E(2,1) N(3,1) S(4,1). Wait DENS = D E N S.
-                    // Actually DENS down (1,1): D(1,1)? But AND has N(1,1). D!=N. conflict!
-                    // Fix: remove DENS. Use NES or something else.
-                    // NEAR down (0,3): N(0,3) E(1,3) A(2,3) R(3,3)
-                    PlacedWord { word: "NEAR".into(), row: 0, col: 3, dir: Dir::Down },
-                    // SANE across (4,0): ... D(4,0) from CARED. S!=D. conflict.
-                    // ACES down (0,4): ... CRANE has E(0,4). A!=E. conflict.
-                    // RACE across (3,0): ... E(3,0). R!=E. conflict.
-                    // DARN across (4,0): D(4,0) A(4,1) R(4,2) N(4,3)
-                    PlacedWord { word: "DARN".into(), row: 4, col: 0, dir: Dir::Across },
-                    // SCARE across? DANCE?
-                    PlacedWord { word: "SCAN".into(), row: 3, col: 0, dir: Dir::Across },
-                ],
-            },
-
-            // Level 9: 8 words, 7 letters
-            // Letters: F L O W E R S
-            9 => Self {
-                rows: 7,
-                cols: 7,
-                letters: vec!['F', 'L', 'O', 'W', 'E', 'R', 'S'],
-                words: vec![
-                    // FLOWER across (0,0): F L O W E R
-                    PlacedWord { word: "FLOWER".into(), row: 0, col: 0, dir: Dir::Across },
-                    // FLOWS down (0,0): F(0,0) L(1,0) O(2,0) W(3,0) S(4,0)
-                    PlacedWord { word: "FLOWS".into(), row: 0, col: 0, dir: Dir::Down },
-                    // LOWER across (1,0): L(1,0) O(1,1) W(1,2) E(1,3) R(1,4) -- shares L(1,0)
-                    PlacedWord { word: "LOWER".into(), row: 1, col: 0, dir: Dir::Across },
-                    // OWL across (2,0): O(2,0) W(2,1) L(2,2) -- shares O(2,0)
-                    PlacedWord { word: "OWL".into(), row: 2, col: 0, dir: Dir::Across },
-                    // WORE down (1,2): W(1,2) O(2,2)... OWL has L(2,2). W,O,L... conflict
-                    // ORE down (1,1): O(1,1) R(2,1) E(3,1) -- shares O(1,1)
-                    PlacedWord { word: "ORE".into(), row: 1, col: 1, dir: Dir::Down },
-                    // SELF across (4,0): S(4,0) E(4,1) L(4,2) F(4,3) -- shares S(4,0)
-                    PlacedWord { word: "SELF".into(), row: 4, col: 0, dir: Dir::Across },
-                    // WOE across (3,0): W(3,0) O(3,1)... ORE has E(3,1). O!=E. conflict.
-                    // FOWL? ROW?
-                    // ROW across (3,1)? no specific intersection
-                    // ROLE across (2,2): ... OWL has L(2,2). R!=L. conflict.
-                    PlacedWord { word: "ROW".into(), row: 2, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "FORE".into(), row: 3, col: 0, dir: Dir::Across },
-                ],
-            },
-
-            // Level 10: 9 words, 7 letters - hardest!
-            // Letters: C H A M P I O N  -- 8 letters but we use 7: C H A M P I N
-            // Simpler: Letters: T R A I N S E
-            // Words: TRAINS, TRAIN, STAIN, RAIN, STEIN, RISE, ANTS, SIN, EARN
-            _ => Self {
                 rows: 8,
                 cols: 8,
+                letters: vec!['P', 'L', 'A', 'N', 'E', 'T', 'S'],
+                words: vec![
+                    PlacedWord { word: "PLANET".into(), row: 1, col: 2, dir: Dir::Across },
+                    PlacedWord { word: "PLAN".into(), row: 1, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "LANE".into(), row: 4, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "ANTE".into(), row: 4, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "TEN".into(), row: 6, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "NET".into(), row: 6, col: 3, dir: Dir::Down },
+                    PlacedWord { word: "NETS".into(), row: 2, col: 5, dir: Dir::Across },
+                ],
+            },
+
+            // ============================================================
+            // Level 8: 8 words, 7 letters, grid 8x8
+            // Letters: C R A N E S D
+            //
+            //  . . C R A N E . .    CRANE across (0,2)
+            //  . . A . . E . . .    CARED down: C(0,2) A(1,2) R(2,2) E(3,2) D(4,2)
+            //  . . R . . A . . .    NEAR down: N(0,5) E(1,5) A(2,5) R(3,5)
+            //  . . E . . R . . .
+            //  S C A N . . . . .    SCAN across (4,0) shares A? SCAN: S(4,0) C(4,1) A(4,2) N(4,3). CARED has D(4,2). A!=D conflict!
+            //
+            // Fix SCAN position:
+            //  . . C R A N E .    CRANE across (0,2)
+            //  . . A . . . . .    CARED down: C(0,2) A(1,2) R(2,2) E(3,2) D(4,2)
+            //  D A R E . . . .    DARE across (2,0) shares R(2,2)? DARE: D(2,0) A(2,1) R(2,2) E(2,3). Match!
+            //  . N . . . . . .    AND down: A(2,1) N(3,1) D(4,1)
+            //  . D . . S C A N    SCAN across (4,4)
+            //  . . . . . . . .
+            //  R E D . . . . .    RED across (6,0)
+            //  . . . N E A R .    NEAR across (7,3)
+            8 => Self {
+                rows: 8,
+                cols: 8,
+                letters: vec!['C', 'R', 'A', 'N', 'E', 'S', 'D'],
+                words: vec![
+                    PlacedWord { word: "CRANE".into(), row: 0, col: 2, dir: Dir::Across },
+                    PlacedWord { word: "CARED".into(), row: 0, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "DARE".into(), row: 2, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "AND".into(), row: 2, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "SCAN".into(), row: 4, col: 4, dir: Dir::Across },
+                    PlacedWord { word: "RED".into(), row: 6, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "NEAR".into(), row: 7, col: 3, dir: Dir::Across },
+                    PlacedWord { word: "DENS".into(), row: 4, col: 1, dir: Dir::Across },
+                ],
+            },
+
+            // ============================================================
+            // Level 9: 8 words, 7 letters, grid 8x8
+            // Letters: F L O W E R S
+            //
+            //  . . . F L O W .    FLOW across (0,3)
+            //  . . . L . . O .    FLOW down: F(0,3) L(1,3) O(2,3) W(3,3). FLOW across is F L O W at (0,3)(0,4)(0,5)(0,6)
+            //
+            // Redo: FLOW across (0,3): F(0,3) L(0,4) O(0,5) W(0,6)
+            //  Let me just place carefully:
+            //
+            //  . . . . . . . .
+            //  . F L O W . . .    FLOW across (1,1)
+            //  . . O . O . . .    LOWER down: L(1,2) O(2,2) W(3,2) E(4,2) R(5,2). But FLOW has L(1,2)? FLOW: F(1,1) L(1,2) O(1,3) W(1,4). Match L(1,2)!
+            //  . . W . R . . .    WORE down: W(1,4) O(2,4) R(3,4) E(4,4)
+            //  . . E . E . . .
+            //  S E R F . . . .    SERF across? no. SELF across (5,0): S(5,0) E(5,1) L(5,2) F(5,3). LOWER has R(5,2). L!=R conflict
+            //
+            // Simpler scattered:
+            9 => Self {
+                rows: 8,
+                cols: 8,
+                letters: vec!['F', 'L', 'O', 'W', 'E', 'R', 'S'],
+                words: vec![
+                    // FLOWER across (0,1): F(0,1) L(0,2) O(0,3) W(0,4) E(0,5) R(0,6)
+                    PlacedWord { word: "FLOWER".into(), row: 0, col: 1, dir: Dir::Across },
+                    // FLOWS down (0,1): F(0,1) L(1,1) O(2,1) W(3,1) S(4,1)
+                    PlacedWord { word: "FLOWS".into(), row: 0, col: 1, dir: Dir::Down },
+                    // OWL across (2,1): O(2,1) W(2,2) L(2,3) -- shares O(2,1)
+                    PlacedWord { word: "OWL".into(), row: 2, col: 1, dir: Dir::Across },
+                    // WORE down (0,4): W(0,4) O(1,4) R(2,4) E(3,4) -- shares W(0,4)
+                    PlacedWord { word: "WORE".into(), row: 0, col: 4, dir: Dir::Down },
+                    // ORE across (2,4): .. WORE has R(2,4). ORE: O(2,4) R(2,5) E(2,6). O!=R conflict.
+                    // SELF across (4,1): S(4,1) E(4,2) L(4,3) F(4,4). FLOWS has S(4,1). Match!
+                    PlacedWord { word: "SELF".into(), row: 4, col: 1, dir: Dir::Across },
+                    // FORE across (6,0): F(6,0) O(6,1) R(6,2) E(6,3)
+                    PlacedWord { word: "FORE".into(), row: 6, col: 0, dir: Dir::Across },
+                    // ROW across (6,4): R(6,4) O(6,5) W(6,6)
+                    PlacedWord { word: "ROW".into(), row: 6, col: 4, dir: Dir::Across },
+                    // LOWER across (3,3): L(3,3) O(3,4)... WORE has E(3,4). O!=E conflict.
+                    // ORE down (2,6)? no word above
+                    // ROLE across (5,3): R(5,3) O(5,4) L(5,5) E(5,6)
+                    PlacedWord { word: "ROLE".into(), row: 5, col: 3, dir: Dir::Across },
+                ],
+            },
+
+            // ============================================================
+            // Level 10: 9 words, 7 letters, grid 9x9 - hardest!
+            // Letters: T R A I N S E
+            //
+            //  . . . . . . . . .
+            //  . T R A I N S . .    TRAINS across (1,1)
+            //  . . I . . . . . .    RISE down: R(1,2) I(2,2) S(3,2) E(4,2)
+            //  . . S . . . . . .
+            //  . . E A R N . . .    EARN across (4,2) shares E(4,2). Match!
+            //  . . . . . . . . .
+            //  . R A I N . . . .    RAIN across (6,1)
+            //  S I N . . . . . .    SIN across (7,0)
+            //  . . . S T E I N .    STEIN across (8,3)
+            _ => Self {
+                rows: 9,
+                cols: 9,
                 letters: vec!['T', 'R', 'A', 'I', 'N', 'S', 'E'],
                 words: vec![
-                    // TRAINS across (0,0): T R A I N S
-                    PlacedWord { word: "TRAINS".into(), row: 0, col: 0, dir: Dir::Across },
-                    // TRAIN down (0,0): T(0,0) R(1,0) A(2,0) I(3,0) N(4,0)
-                    PlacedWord { word: "TRAIN".into(), row: 0, col: 0, dir: Dir::Down },
-                    // RISE across (1,0): R(1,0) I(1,1) S(1,2) E(1,3) -- shares R(1,0)
-                    PlacedWord { word: "RISE".into(), row: 1, col: 0, dir: Dir::Across },
-                    // ANTS across (2,0): A(2,0) N(2,1) T(2,2) S(2,3) -- shares A(2,0)
-                    PlacedWord { word: "ANTS".into(), row: 2, col: 0, dir: Dir::Across },
-                    // INSET down (0,1)? no, TRAINS has R(0,1).
-                    // INST down? no word.
-                    // SIN across (4,0): no, TRAIN has N(4,0). S!=N.
-                    // STAIN across (3,0)? I(3,0). S!=I. conflict.
-                    // RAIN across (3,0)? ... no, I(3,0) from TRAIN. R!=I.
-                    // IRES down (1,0)? -- that's RISE going down. R I ... same spot.
-                    // INERT down (0,3)? TRAINS has I(0,3). INERT: I N E R T. I(0,3) N(1,3)... RISE has E(1,3). N!=E. conflict.
-                    // SINE down (1,2): S(1,2) I(2,2)... ANTS has T(2,2). S,I,T... conflict.
-                    // EARN across (4,0): no, TRAIN has N(4,0).
-                    // Let me place words more carefully at different positions:
-                    // RAIN across (3,1): R(3,1) A(3,2) I(3,3) N(3,4)
-                    PlacedWord { word: "RAIN".into(), row: 3, col: 1, dir: Dir::Across },
-                    // SIREN down (0,5): S(0,5) I(1,5) R(2,5) E(3,5) N(4,5)
-                    PlacedWord { word: "SIREN".into(), row: 0, col: 5, dir: Dir::Down },
-                    // STIR across (4,0): ... N(4,0) from TRAIN. S!=N.
-                    // STEIN across (4,2): S(4,2) T(4,3) E(4,4) I(4,5) N(4,6)... SIREN has N(4,5). I!=N conflict.
-                    // SIN across (5,0): S(5,0) I(5,1) N(5,2)
-                    PlacedWord { word: "SIN".into(), row: 5, col: 0, dir: Dir::Across },
-                    // EARN across (4,1): E(4,1) A(4,2) R(4,3) N(4,4)
-                    PlacedWord { word: "EARN".into(), row: 4, col: 1, dir: Dir::Across },
-                    // STARE? TINSE? SATIN?
-                    PlacedWord { word: "STEIN".into(), row: 6, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "TRAINS".into(), row: 1, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "RISE".into(), row: 1, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "EARN".into(), row: 4, col: 2, dir: Dir::Across },
+                    PlacedWord { word: "RAIN".into(), row: 6, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "SIN".into(), row: 7, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "STEIN".into(), row: 8, col: 3, dir: Dir::Across },
+                    PlacedWord { word: "ANTS".into(), row: 1, col: 4, dir: Dir::Down },
+                    PlacedWord { word: "TIRE".into(), row: 1, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "STAIN".into(), row: 3, col: 2, dir: Dir::Down },
                 ],
             },
         }
     }
 
     fn bonus_words(&self) -> Vec<&'static str> {
-        // Each level has bonus words that can be formed from the letters
-        // but are not placed on the grid
         match self.letters.as_slice() {
             ['E', 'A', 'T', 'S'] => vec!["SAT", "TEA", "TAS"],
             ['A', 'G', 'E', 'R', 'N'] => vec!["NAG", "RAG", "RANG", "GEAR", "NEAR"],
-            ['S', 'T', 'O', 'P', 'R', 'E'] => vec!["ROPE", "PORE", "TORE", "REST", "SORT"],
+            ['S', 'T', 'O', 'P', 'R', 'E'] => vec!["ROPE", "PORE", "REST", "SORT"],
             ['L', 'E', 'S', 'S', 'Y', 'T'] => vec!["LETS", "LEST", "STYLES"],
             ['H', 'O', 'M', 'E', 'S', 'T'] => vec!["THEM", "MOTH", "MOST", "THOSE"],
-            ['B', 'R', 'I', 'C', 'K', 'S'] => vec!["CRIBS", "IRKS", "SIR"],
+            ['B', 'R', 'I', 'C', 'K', 'S'] => vec!["CRIBS", "IRKS"],
             ['P', 'L', 'A', 'N', 'E', 'T', 'S'] => vec!["SLANT", "PANT", "STEAL", "PLATE"],
-            ['C', 'R', 'A', 'N', 'E', 'S', 'D'] => vec!["DANCE", "SCARE", "DANCES", "RACED"],
-            ['F', 'L', 'O', 'W', 'E', 'R', 'S'] => vec!["WOLF", "OWES", "ROLES", "FLOWS"],
+            ['C', 'R', 'A', 'N', 'E', 'S', 'D'] => vec!["DANCE", "SCARE", "RACED", "CEDAR"],
+            ['F', 'L', 'O', 'W', 'E', 'R', 'S'] => vec!["WOLF", "OWES", "SLOWER", "WORSE"],
             ['T', 'R', 'A', 'I', 'N', 'S', 'E'] => vec!["STARE", "INSERT", "RETAIN", "SATIRE"],
             _ => vec![],
         }
@@ -676,6 +575,7 @@ struct GameApp {
     current_level: usize,
     status: String,
     drag_active: bool,
+    bg_texture: Option<egui::TextureHandle>,
 }
 
 impl GameApp {
@@ -685,6 +585,7 @@ impl GameApp {
             current_level: 1,
             status: String::new(),
             drag_active: false,
+            bg_texture: None,
         }
     }
 
@@ -694,6 +595,51 @@ impl GameApp {
         self.game = GameState::new(level_num, coins);
         self.status = String::new();
         self.drag_active = false;
+    }
+
+    fn load_bg_texture(&mut self, ctx: &egui::Context) {
+        if self.bg_texture.is_some() {
+            return;
+        }
+        let img_bytes = include_bytes!("../assets/background.jpg");
+        if let Ok(img) = image::load_from_memory(img_bytes) {
+            let rgba = img.to_rgba8();
+            let size = [rgba.width() as usize, rgba.height() as usize];
+            let pixels = rgba.into_vec();
+            let color_image = egui::ColorImage::from_rgba_unmultiplied(size, &pixels);
+            self.bg_texture = Some(ctx.load_texture(
+                "background",
+                color_image,
+                egui::TextureOptions::LINEAR,
+            ));
+        }
+    }
+}
+
+/// Paints a soft drop shadow behind a rounded rectangle.
+fn paint_drop_shadow(painter: &egui::Painter, rect: egui::Rect, rounding: f32, layers: u8, spread: f32) {
+    let base_alpha = 35u8;
+    for i in 0..layers {
+        let expand = spread * (i as f32 + 1.0) / layers as f32;
+        let alpha = base_alpha.saturating_sub((base_alpha as f32 * i as f32 / layers as f32) as u8);
+        let shadow_rect = rect.expand(expand);
+        let offset = egui::vec2(0.0, expand * 0.5);
+        let shifted = egui::Rect::from_min_size(
+            shadow_rect.min + offset,
+            shadow_rect.size(),
+        );
+        painter.rect_filled(shifted, rounding + expand * 0.5, egui::Color32::from_rgba_premultiplied(0, 0, 0, alpha));
+    }
+}
+
+/// Paints a soft circular drop shadow.
+fn paint_circle_shadow(painter: &egui::Painter, center: egui::Pos2, radius: f32, layers: u8, spread: f32) {
+    let base_alpha = 30u8;
+    for i in 0..layers {
+        let expand = spread * (i as f32 + 1.0) / layers as f32;
+        let alpha = base_alpha.saturating_sub((base_alpha as f32 * i as f32 / layers as f32) as u8);
+        let shifted_center = center + egui::vec2(0.0, expand * 0.4);
+        painter.circle_filled(shifted_center, radius + expand, egui::Color32::from_rgba_premultiplied(0, 0, 0, alpha));
     }
 }
 
@@ -734,14 +680,25 @@ impl eframe::App for GameApp {
 
         let _screen = ctx.screen_rect();
 
+        // Load background texture on first frame
+        self.load_bg_texture(ctx);
+
         egui::CentralPanel::default()
             .frame(egui::Frame::none())
             .show(ctx, |ui| {
                 let full_rect = ui.max_rect();
                 let painter = ui.painter();
 
-                // --- GRADIENT BACKGROUND ---
-                paint_gradient_bg(painter, full_rect);
+                // --- BACKGROUND IMAGE ---
+                if let Some(tex) = &self.bg_texture {
+                    let uv = egui::Rect::from_min_max(
+                        egui::pos2(0.0, 0.0),
+                        egui::pos2(1.0, 1.0),
+                    );
+                    painter.image(tex.id(), full_rect, uv, egui::Color32::WHITE);
+                } else {
+                    paint_gradient_bg(painter, full_rect);
+                }
 
                 let margin = 16.0;
                 let content_rect = full_rect.shrink(margin);
@@ -753,6 +710,7 @@ impl eframe::App for GameApp {
                     egui::pos2(content_rect.min.x, cursor_y),
                     egui::vec2(content_rect.width(), bar_h),
                 );
+                paint_drop_shadow(painter, bar_rect, 22.0, 5, 8.0);
                 painter.rect_filled(bar_rect, 22.0, TOPBAR_BG);
 
                 // Gem + coins (left)
@@ -833,6 +791,15 @@ impl eframe::App for GameApp {
 
                 let visible = self.game.visible_letters_map();
 
+                // Grid backdrop panel for contrast
+                let grid_backdrop = egui::Rect::from_min_size(
+                    egui::pos2(grid_x0 - 12.0, grid_y0 - 12.0),
+                    egui::vec2(grid_total_w + 24.0, grid_total_h + 24.0),
+                );
+                paint_drop_shadow(painter, grid_backdrop, 16.0, 5, 10.0);
+                painter.rect_filled(grid_backdrop, 16.0, egui::Color32::from_rgba_premultiplied(10, 25, 60, 180));
+                painter.rect_stroke(grid_backdrop, 16.0, egui::Stroke::new(1.0, egui::Color32::from_rgba_premultiplied(255, 255, 255, 25)));
+
                 for r in 0..self.game.level.rows {
                     for c in 0..self.game.level.cols {
                         if !self.game.used.contains(&(r, c)) {
@@ -845,6 +812,9 @@ impl eframe::App for GameApp {
                             egui::pos2(x, y),
                             egui::vec2(cell_size, cell_size),
                         );
+
+                        // Cell drop shadow
+                        paint_drop_shadow(painter, cell_rect, 6.0, 3, 3.0);
 
                         let has_letter = visible.contains_key(&(r, c));
                         let bg = if has_letter { CELL_FILLED } else { CELL_EMPTY };
@@ -876,10 +846,11 @@ impl eframe::App for GameApp {
                         ),
                         egui::vec2(word_w, word_display_h),
                     );
+                    paint_drop_shadow(painter, word_rect, 18.0, 4, 6.0);
                     painter.rect_filled(
                         word_rect,
                         18.0,
-                        egui::Color32::from_rgba_premultiplied(255, 255, 255, 180),
+                        egui::Color32::from_rgba_premultiplied(255, 255, 255, 200),
                     );
                     painter.text(
                         word_rect.center(),
@@ -895,14 +866,20 @@ impl eframe::App for GameApp {
 
                 // --- STATUS MESSAGE ---
                 if !self.status.is_empty() {
-                    painter.text(
+                    let status_rect = egui::Rect::from_center_size(
                         egui::pos2(content_rect.center().x, cursor_y + 10.0),
+                        egui::vec2(self.status.len() as f32 * 9.0 + 30.0, 28.0),
+                    );
+                    paint_drop_shadow(painter, status_rect, 14.0, 3, 4.0);
+                    painter.rect_filled(status_rect, 14.0, egui::Color32::from_rgba_premultiplied(0, 0, 0, 140));
+                    painter.text(
+                        status_rect.center(),
                         egui::Align2::CENTER_CENTER,
                         &self.status,
                         egui::FontId::proportional(15.0),
                         egui::Color32::WHITE,
                     );
-                    cursor_y += 26.0;
+                    cursor_y += 32.0;
                 }
 
                 // --- LETTER WHEEL AREA ---
@@ -915,12 +892,13 @@ impl eframe::App for GameApp {
                     cursor_y + available_h / 2.0 - 20.0,
                 );
 
-                // White circle background
+                // White circle background with shadow
+                paint_circle_shadow(painter, wheel_center, wheel_radius, 6, 12.0);
                 painter.circle_filled(wheel_center, wheel_radius, WHEEL_BG);
                 painter.circle_stroke(
                     wheel_center,
                     wheel_radius,
-                    egui::Stroke::new(2.0, egui::Color32::from_rgb(220, 225, 235)),
+                    egui::Stroke::new(2.5, egui::Color32::from_rgba_premultiplied(255, 255, 255, 120)),
                 );
 
                 // Tile positions
@@ -1064,7 +1042,9 @@ impl eframe::App for GameApp {
                 );
                 let hint_id = ui.make_persistent_id("hint_btn");
                 let hint_resp = ui.interact(hint_rect, hint_id, egui::Sense::click());
+                paint_circle_shadow(painter, hint_center, hint_size / 2.0, 4, 6.0);
                 painter.circle_filled(hint_center, hint_size / 2.0, HINT_BTN_BG);
+                painter.circle_stroke(hint_center, hint_size / 2.0, egui::Stroke::new(1.5, egui::Color32::from_rgba_premultiplied(255, 255, 255, 40)));
                 painter.text(
                     egui::pos2(hint_center.x, hint_center.y - 4.0),
                     egui::Align2::CENTER_CENTER,
@@ -1097,6 +1077,7 @@ impl eframe::App for GameApp {
                 );
                 let submit_id = ui.make_persistent_id("submit_btn");
                 let submit_resp = ui.interact(submit_rect, submit_id, egui::Sense::click());
+                paint_drop_shadow(painter, submit_rect, 20.0, 4, 6.0);
                 painter.rect_filled(
                     submit_rect,
                     20.0,
@@ -1105,6 +1086,11 @@ impl eframe::App for GameApp {
                     } else {
                         SUBMIT_BG
                     },
+                );
+                painter.rect_stroke(
+                    submit_rect,
+                    20.0,
+                    egui::Stroke::new(1.5, egui::Color32::from_rgba_premultiplied(255, 255, 255, 50)),
                 );
                 painter.text(
                     submit_rect.center(),
@@ -1125,7 +1111,9 @@ impl eframe::App for GameApp {
                 );
                 let back_id = ui.make_persistent_id("back_btn");
                 let back_resp = ui.interact(back_rect, back_id, egui::Sense::click());
+                paint_circle_shadow(painter, back_center, hint_size / 2.0, 4, 6.0);
                 painter.circle_filled(back_center, hint_size / 2.0, HINT_BTN_BG);
+                painter.circle_stroke(back_center, hint_size / 2.0, egui::Stroke::new(1.5, egui::Color32::from_rgba_premultiplied(255, 255, 255, 40)));
                 painter.text(
                     back_center,
                     egui::Align2::CENTER_CENTER,
@@ -1152,6 +1140,7 @@ impl eframe::App for GameApp {
                         full_rect.center(),
                         egui::vec2(280.0, popup_h),
                     );
+                    paint_drop_shadow(painter, overlay, 16.0, 6, 16.0);
                     painter.rect_filled(
                         overlay,
                         16.0,
@@ -1194,6 +1183,7 @@ impl eframe::App for GameApp {
                     );
                     let next_id = ui.make_persistent_id("next_btn");
                     let next_resp = ui.interact(next_rect, next_id, egui::Sense::click());
+                    paint_drop_shadow(painter, next_rect, 19.0, 4, 6.0);
                     painter.rect_filled(
                         next_rect,
                         19.0,
@@ -1202,6 +1192,11 @@ impl eframe::App for GameApp {
                         } else {
                             egui::Color32::from_rgb(40, 180, 70)
                         },
+                    );
+                    painter.rect_stroke(
+                        next_rect,
+                        19.0,
+                        egui::Stroke::new(1.5, egui::Color32::from_rgba_premultiplied(255, 255, 255, 60)),
                     );
                     painter.text(
                         next_rect.center(),
