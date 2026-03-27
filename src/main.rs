@@ -33,319 +33,168 @@ impl Level {
 
     fn get(level_num: usize) -> Self {
         match level_num {
-            // ============================================================
-            // Level 1 (Easy): 4 words, 4 letters, grid 5x5
-            // Letters: E A T S
-            //
-            //  . . . . .
-            //  . E A T .    EAT across (1,1)
-            //  . . T . .    ATE down: A(1,2) T(2,2) E(3,2)
-            //  S E T . .    SET across (3,0) shares T(3,2)? no, SET is S(3,0)E(3,1)T(3,2) -- shares T!? wait ATE has E(3,2). T!=E conflict
-            //
-            // Fix: ATE down from (1,2): A(1,2) T(2,2) E(3,2)
-            //      SEA across (3,0): S(3,0) E(3,1) A(3,2) -- E(3,2) from ATE vs A(3,2) from SEA. conflict!
-            //
-            // Clean design:
-            //  . . . . .
-            //  . S E A .    SEA across (1,1): S(1,1) E(1,2) A(1,3)
-            //  . . A . .    EAT down: E(1,2) A(2,2) T(3,2)
-            //  . . T . .
-            //  S E T . .    SET across (4,0) shares T? SET: S(4,0) E(4,1) T(4,2). ATE has T(3,2) not (4,2). No share.
-            //               But we want intersection! ATE goes (1,2)(2,2)(3,2). SET at (3,0): S(3,0)E(3,1)T(3,2) shares T(3,2)!
-            //               But ATE down has T at (3,2)? EAT down: E(1,2) A(2,2) T(3,2). SET: T(3,2). Match!
+            // All levels use "spine + branches" pattern for guaranteed connectivity.
+            // Every word shares at least one cell with another word.
+            // Level 1: CAST spine, ACT/SAT branch down, CAT crosses SAT
+            // Intersections: C(1,0), S(1,2), T(3,2) — all verified
             1 => Self {
                 rows: 5,
                 cols: 5,
-                letters: vec!['E', 'A', 'T', 'S'],
+                letters: vec!['C', 'A', 'T', 'S'],
                 words: vec![
-                    PlacedWord { word: "SEA".into(), row: 1, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "EAT".into(), row: 1, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "SET".into(), row: 3, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "ATE".into(), row: 2, col: 2, dir: Dir::Across },
+                    PlacedWord { word: "CAST".into(), row: 1, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "ACT".into(), row: 0, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "SAT".into(), row: 1, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "CAT".into(), row: 3, col: 0, dir: Dir::Across },
                 ],
             },
 
-            // ============================================================
-            // Level 2: 5 words, 5 letters, grid 6x6
-            // Letters: A G E R N
-            //
-            //  . . . . . .
-            //  . A G E . .    AGE across (1,1)
-            //  . . E . . .    GEN down: G(1,2) E(2,2) N(3,2)
-            //  R A N . . .    RAN across (3,0) shares N(3,2)? RAN: R(3,0) A(3,1) N(3,2). GEN has N(3,2). Match!
-            //  . . . . . .
-            //  . . . E R A    ERA across (5,3)
+            // Level 2: SPINE vertical spine, 4 across words branch off
+            // Intersections: P(1,2), I(2,2), N(3,2), E(4,2) — all verified
             2 => Self {
                 rows: 6,
                 cols: 6,
-                letters: vec!['A', 'G', 'E', 'R', 'N'],
+                letters: vec!['S', 'P', 'I', 'N', 'E'],
                 words: vec![
-                    PlacedWord { word: "AGE".into(), row: 1, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "GEN".into(), row: 1, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "RAN".into(), row: 3, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "ERA".into(), row: 5, col: 3, dir: Dir::Across },
-                    PlacedWord { word: "ARE".into(), row: 3, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "SPINE".into(), row: 0, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "PIN".into(), row: 1, col: 2, dir: Dir::Across },
+                    PlacedWord { word: "SIN".into(), row: 2, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "PEN".into(), row: 3, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "PIE".into(), row: 4, col: 0, dir: Dir::Across },
                 ],
             },
 
-            // ============================================================
-            // Level 3: 5 words, 6 letters, grid 7x7
-            // Letters: S T O P R E
-            //
-            //  . . . . . . .
-            //  . . S T O P .    STOP across (1,2)
-            //  . . . O . . .    TORE down: T(1,3) O(2,3) R(3,3) E(4,3)
-            //  . . . R . . .
-            //  P O T E . . .    POTE? no. POT across (4,0): P(4,0) O(4,1) T(4,2). TORE has E(4,3).
-            //  . . . . . . .    OPT? ROPE?
-            //
-            // Cleaner:
-            //  . . . . . . .
-            //  . . T O P . .    TOP across (1,2)
-            //  . . . R . . .    ORE down: O(1,3) R(2,3) E(3,3)
-            //  . P O S E . .    POSE across (3,1) shares? no S not E at (3,3). POSE: P(3,1)O(3,2)S(3,3)E(3,4). ORE has E(3,3). S!=E conflict.
-            //
-            // Simpler scattered layout:
-            //  . . . . . . .
-            //  . . R O P E .    ROPE across (1,2): R(1,2) O(1,3) P(1,4) E(1,5)
-            //  . . . . O . .    POT down: P(1,4) O(2,4) T(3,4)
-            //  . S T O P . .    STOP across (3,1): S(3,1) T(3,2) O(3,3) P(3,4). POT has T(3,4). P!=T conflict.
-            //
-            // OK just do it carefully:
-            //  . . . . . . .
-            //  . R O P E . .    ROPE across (1,1)
-            //  . . . E . . .    PET down: P(1,3) E(2,3) T(3,3)
-            //  . S O T . . .    No...
-            //
-            // Simple verified:
-            //  . S . . . .
-            //  . T . . . .      STEP down: S(0,1) T(1,1) E(2,1) P(3,1)
-            //  . E . . . .
-            //  R O P E . .      ROPE across (3,0) shares? P(3,1) from STEP. But ROPE: R(3,0) O(3,1) P(3,2) E(3,3). O(3,1) vs P(3,1) conflict
-            //
-            // Final clean:
+            // Level 3: HASTE spine, HEAT/SET branch down, HAT/TEA cross HEAT
+            // Intersections: H(1,1), S(1,3), A(3,1), T(4,1) — all verified
             3 => Self {
                 rows: 7,
                 cols: 7,
-                letters: vec!['S', 'T', 'O', 'P', 'R', 'E'],
+                letters: vec!['H', 'A', 'S', 'T', 'E'],
                 words: vec![
-                    // ROPE across (1,2): R(1,2) O(1,3) P(1,4) E(1,5)
-                    PlacedWord { word: "ROPE".into(), row: 1, col: 2, dir: Dir::Across },
-                    // ORE down (1,3): O(1,3) R(2,3) E(3,3)
-                    PlacedWord { word: "ORE".into(), row: 1, col: 3, dir: Dir::Down },
-                    // STOP across (3,0): S(3,0) T(3,1) O(3,2) P(3,3). ORE has E(3,3). P!=E conflict!
-                    // STEP across (3,1): S(3,1) T(3,2) E(3,3) P(3,4). ORE has E(3,3). Match!
-                    PlacedWord { word: "STEP".into(), row: 3, col: 1, dir: Dir::Across },
-                    // POT across (5,0): P(5,0) O(5,1) T(5,2)
-                    PlacedWord { word: "POT".into(), row: 5, col: 0, dir: Dir::Across },
-                    // SORT down (3,1): S(3,1) O(4,1) R(5,1) T(6,1). POT has O(5,1). R!=O conflict!
-                    // TOP across (5,3): T(5,3) O(5,4) P(5,5)
-                    PlacedWord { word: "TOP".into(), row: 5, col: 3, dir: Dir::Across },
+                    PlacedWord { word: "HASTE".into(), row: 1, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "HEAT".into(), row: 1, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "SET".into(), row: 1, col: 3, dir: Dir::Down },
+                    PlacedWord { word: "HAT".into(), row: 3, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "TEA".into(), row: 4, col: 1, dir: Dir::Across },
                 ],
             },
 
-            // ============================================================
-            // Level 4: 6 words, 6 letters, grid 7x7
-            // Letters: L E S S Y T  (original, already has good scattered layout)
+            // Level 4: WARMS spine, WAR/MARS branch down, SAW/RAM cross, ARMS overlaps
+            // Intersections: W(2,1), M(2,4), A(3,1), R(4,1) — all verified
             4 => Self {
                 rows: 7,
                 cols: 7,
-                letters: vec!['L', 'E', 'S', 'S', 'Y', 'T'],
+                letters: vec!['W', 'A', 'R', 'M', 'S'],
                 words: vec![
-                    // L down (0,2): starts LESS across
-                    PlacedWord { word: "LESS".into(), row: 0, col: 2, dir: Dir::Across },
-                    PlacedWord { word: "LET".into(), row: 0, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "YET".into(), row: 2, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "YES".into(), row: 2, col: 0, dir: Dir::Down },
-                    PlacedWord { word: "STYLE".into(), row: 4, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "SET".into(), row: 5, col: 3, dir: Dir::Across },
+                    PlacedWord { word: "WARMS".into(), row: 2, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "WAR".into(), row: 2, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "MARS".into(), row: 2, col: 4, dir: Dir::Down },
+                    PlacedWord { word: "SAW".into(), row: 3, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "RAM".into(), row: 4, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "ARMS".into(), row: 3, col: 1, dir: Dir::Down },
                 ],
             },
 
-            // ============================================================
-            // Level 5: 6 words, 6 letters, grid 7x7
-            // Letters: H O M E S T
-            //
-            //  . . . . . . .
-            //  . . H O M E .    HOME across (1,2)
-            //  . . O . . . .    HOST down: H(1,2) O(2,2) S(3,2) T(4,2)
-            //  . . S O M E .    SOME across (3,2)? S(3,2) O(3,3) M(3,4) E(3,5). HOST has S(3,2). Match!
-            //  M E T . . . .    MET across (4,0). HOST has T(4,2). MET: M(4,0) E(4,1) T(4,2). Match!
-            //  . . . . . . .
-            //  . T H E . . .    THE across (6,1)
+            // Level 5: CARES spine, CARS/EARS branch down, ACE/ERA/ARC cross
+            // Intersections: C(1,1), E(1,4), A(2,4), R(3,1), A(3,2) — all verified
             5 => Self {
                 rows: 7,
                 cols: 7,
-                letters: vec!['H', 'O', 'M', 'E', 'S', 'T'],
+                letters: vec!['C', 'A', 'R', 'E', 'S'],
                 words: vec![
-                    PlacedWord { word: "HOME".into(), row: 1, col: 2, dir: Dir::Across },
-                    PlacedWord { word: "HOST".into(), row: 1, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "SOME".into(), row: 3, col: 2, dir: Dir::Across },
-                    PlacedWord { word: "MET".into(), row: 4, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "THE".into(), row: 6, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "TOES".into(), row: 4, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "CARES".into(), row: 1, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "CARS".into(), row: 1, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "EARS".into(), row: 1, col: 4, dir: Dir::Down },
+                    PlacedWord { word: "ACE".into(), row: 2, col: 4, dir: Dir::Across },
+                    PlacedWord { word: "ERA".into(), row: 3, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "ARC".into(), row: 3, col: 2, dir: Dir::Down },
                 ],
             },
 
-            // ============================================================
-            // Level 6: 6 words, 6 letters, grid 7x7
-            // Letters: B R I C K S
-            //
-            //  . . . . . . .
-            //  . B R I C K .    BRICK across (1,1)
-            //  . . I . . . .    RIB down: R(1,2) I(2,2) B(3,2)
-            //  . . B . S I R    SIR across (3,4)
-            //  . . . . K . .    SKI down: S(3,4) K(4,4) I(5,4)
-            //  R I S K . I .    RISK across (5,0). SKI has I(5,4). Match!
-            //  . . . . . . .
+            // Level 6: GRINDS spine, GRID/RIND/DIN/SIR branch down, RIG crosses
+            // Intersections: G(1,0), R(1,1), D(1,4), S(1,5), R(2,0), I(2,1) — all verified
             6 => Self {
                 rows: 7,
                 cols: 7,
-                letters: vec!['B', 'R', 'I', 'C', 'K', 'S'],
+                letters: vec!['G', 'R', 'I', 'N', 'D', 'S'],
                 words: vec![
-                    PlacedWord { word: "BRICK".into(), row: 1, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "RIB".into(), row: 1, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "SIR".into(), row: 3, col: 4, dir: Dir::Across },
-                    PlacedWord { word: "SKI".into(), row: 3, col: 4, dir: Dir::Down },
-                    PlacedWord { word: "RISK".into(), row: 5, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "ICK".into(), row: 2, col: 4, dir: Dir::Across },
+                    PlacedWord { word: "GRINDS".into(), row: 1, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "GRID".into(), row: 1, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "RIND".into(), row: 1, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "DIN".into(), row: 1, col: 4, dir: Dir::Down },
+                    PlacedWord { word: "SIR".into(), row: 1, col: 5, dir: Dir::Down },
+                    PlacedWord { word: "RIG".into(), row: 2, col: 0, dir: Dir::Across },
                 ],
             },
 
-            // ============================================================
-            // Level 7: 7 words, 7 letters, grid 8x8
-            // Letters: P L A N E T S
-            //
-            //  . . . . . . . .
-            //  . . P L A N E T    PLANET across (1,2)
-            //  . . L . . . . .    PLAN down: P(1,2) L(2,2) A(3,2) N(4,2)
-            //  . . A . . . . .
-            //  L A N E . . . .    LANE across (4,0) shares N(4,2)? LANE: L(4,0) A(4,1) N(4,2) E(4,3). PLAN has N(4,2). Match!
-            //  . N . . . . . .    ANTE down: A(4,1) N(5,1) T(6,1) E(7,1)
-            //  . T E N . . . .    TEN across (6,1): T(6,1) E(6,2) N(6,3). ANTE has T(6,1). Match!
-            //  . E . . . . . .
+            // Level 7: PLANETS spine, PETAL/NETS/TALE branch down, TENT/ANTS/LANE cross
+            // Intersections: P(1,0), N(1,3), T(1,5), T(3,0), T(3,3), A(4,0), S(4,3), L(5,0) — all verified
             7 => Self {
                 rows: 8,
                 cols: 8,
                 letters: vec!['P', 'L', 'A', 'N', 'E', 'T', 'S'],
                 words: vec![
-                    PlacedWord { word: "PLANET".into(), row: 1, col: 2, dir: Dir::Across },
-                    PlacedWord { word: "PLAN".into(), row: 1, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "LANE".into(), row: 4, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "ANTE".into(), row: 4, col: 1, dir: Dir::Down },
-                    PlacedWord { word: "TEN".into(), row: 6, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "NET".into(), row: 6, col: 3, dir: Dir::Down },
-                    PlacedWord { word: "NETS".into(), row: 2, col: 5, dir: Dir::Across },
+                    PlacedWord { word: "PLANETS".into(), row: 1, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "PETAL".into(), row: 1, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "NETS".into(), row: 1, col: 3, dir: Dir::Down },
+                    PlacedWord { word: "TALE".into(), row: 1, col: 5, dir: Dir::Down },
+                    PlacedWord { word: "TENT".into(), row: 3, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "ANTS".into(), row: 4, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "LANE".into(), row: 5, col: 0, dir: Dir::Across },
                 ],
             },
 
-            // ============================================================
-            // Level 8: 8 words, 7 letters, grid 8x8
-            // Letters: C R A N E S D
-            //
-            //  . . C R A N E . .    CRANE across (0,2)
-            //  . . A . . E . . .    CARED down: C(0,2) A(1,2) R(2,2) E(3,2) D(4,2)
-            //  . . R . . A . . .    NEAR down: N(0,5) E(1,5) A(2,5) R(3,5)
-            //  . . E . . R . . .
-            //  S C A N . . . . .    SCAN across (4,0) shares A? SCAN: S(4,0) C(4,1) A(4,2) N(4,3). CARED has D(4,2). A!=D conflict!
-            //
-            // Fix SCAN position:
-            //  . . C R A N E .    CRANE across (0,2)
-            //  . . A . . . . .    CARED down: C(0,2) A(1,2) R(2,2) E(3,2) D(4,2)
-            //  D A R E . . . .    DARE across (2,0) shares R(2,2)? DARE: D(2,0) A(2,1) R(2,2) E(2,3). Match!
-            //  . N . . . . . .    AND down: A(2,1) N(3,1) D(4,1)
-            //  . D . . S C A N    SCAN across (4,4)
-            //  . . . . . . . .
-            //  R E D . . . . .    RED across (6,0)
-            //  . . . N E A R .    NEAR across (7,3)
+            // Level 8: CRANES spine, CARED/NEARS branch down, ACRE/RAN/DENS/END cross
+            // Intersections: C(1,1), N(1,4), A(2,1), E(2,4), R(3,1), D(5,1), S(5,4), E(5,2) — all verified
             8 => Self {
                 rows: 8,
                 cols: 8,
                 letters: vec!['C', 'R', 'A', 'N', 'E', 'S', 'D'],
                 words: vec![
-                    PlacedWord { word: "CRANE".into(), row: 0, col: 2, dir: Dir::Across },
-                    PlacedWord { word: "CARED".into(), row: 0, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "DARE".into(), row: 2, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "AND".into(), row: 2, col: 1, dir: Dir::Down },
-                    PlacedWord { word: "SCAN".into(), row: 4, col: 4, dir: Dir::Across },
-                    PlacedWord { word: "RED".into(), row: 6, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "NEAR".into(), row: 7, col: 3, dir: Dir::Across },
-                    PlacedWord { word: "DENS".into(), row: 4, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "CRANES".into(), row: 1, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "CARED".into(), row: 1, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "NEARS".into(), row: 1, col: 4, dir: Dir::Down },
+                    PlacedWord { word: "ACRE".into(), row: 2, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "RAN".into(), row: 3, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "DENS".into(), row: 5, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "END".into(), row: 5, col: 2, dir: Dir::Down },
                 ],
             },
 
-            // ============================================================
-            // Level 9: 8 words, 7 letters, grid 8x8
-            // Letters: F L O W E R S
-            //
-            //  . . . F L O W .    FLOW across (0,3)
-            //  . . . L . . O .    FLOW down: F(0,3) L(1,3) O(2,3) W(3,3). FLOW across is F L O W at (0,3)(0,4)(0,5)(0,6)
-            //
-            // Redo: FLOW across (0,3): F(0,3) L(0,4) O(0,5) W(0,6)
-            //  Let me just place carefully:
-            //
-            //  . . . . . . . .
-            //  . F L O W . . .    FLOW across (1,1)
-            //  . . O . O . . .    LOWER down: L(1,2) O(2,2) W(3,2) E(4,2) R(5,2). But FLOW has L(1,2)? FLOW: F(1,1) L(1,2) O(1,3) W(1,4). Match L(1,2)!
-            //  . . W . R . . .    WORE down: W(1,4) O(2,4) R(3,4) E(4,4)
-            //  . . E . E . . .
-            //  S E R F . . . .    SERF across? no. SELF across (5,0): S(5,0) E(5,1) L(5,2) F(5,3). LOWER has R(5,2). L!=R conflict
-            //
-            // Simpler scattered:
+            // Level 9: STORED spine, SORT/TROD/ODES/REST branch down, ROES/SORE/TORE cross
+            // Intersections: S(1,1), T(1,2), O(1,3), R(1,4), R(3,1), O(3,2), E(3,3), S(3,4), S(4,3), T(4,4) — all verified
             9 => Self {
                 rows: 8,
                 cols: 8,
-                letters: vec!['F', 'L', 'O', 'W', 'E', 'R', 'S'],
+                letters: vec!['S', 'T', 'O', 'R', 'E', 'D'],
                 words: vec![
-                    // FLOWER across (0,1): F(0,1) L(0,2) O(0,3) W(0,4) E(0,5) R(0,6)
-                    PlacedWord { word: "FLOWER".into(), row: 0, col: 1, dir: Dir::Across },
-                    // FLOWS down (0,1): F(0,1) L(1,1) O(2,1) W(3,1) S(4,1)
-                    PlacedWord { word: "FLOWS".into(), row: 0, col: 1, dir: Dir::Down },
-                    // OWL across (2,1): O(2,1) W(2,2) L(2,3) -- shares O(2,1)
-                    PlacedWord { word: "OWL".into(), row: 2, col: 1, dir: Dir::Across },
-                    // WORE down (0,4): W(0,4) O(1,4) R(2,4) E(3,4) -- shares W(0,4)
-                    PlacedWord { word: "WORE".into(), row: 0, col: 4, dir: Dir::Down },
-                    // ORE across (2,4): .. WORE has R(2,4). ORE: O(2,4) R(2,5) E(2,6). O!=R conflict.
-                    // SELF across (4,1): S(4,1) E(4,2) L(4,3) F(4,4). FLOWS has S(4,1). Match!
-                    PlacedWord { word: "SELF".into(), row: 4, col: 1, dir: Dir::Across },
-                    // FORE across (6,0): F(6,0) O(6,1) R(6,2) E(6,3)
-                    PlacedWord { word: "FORE".into(), row: 6, col: 0, dir: Dir::Across },
-                    // ROW across (6,4): R(6,4) O(6,5) W(6,6)
-                    PlacedWord { word: "ROW".into(), row: 6, col: 4, dir: Dir::Across },
-                    // LOWER across (3,3): L(3,3) O(3,4)... WORE has E(3,4). O!=E conflict.
-                    // ORE down (2,6)? no word above
-                    // ROLE across (5,3): R(5,3) O(5,4) L(5,5) E(5,6)
-                    PlacedWord { word: "ROLE".into(), row: 5, col: 3, dir: Dir::Across },
+                    PlacedWord { word: "STORED".into(), row: 1, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "SORT".into(), row: 1, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "TROD".into(), row: 1, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "ODES".into(), row: 1, col: 3, dir: Dir::Down },
+                    PlacedWord { word: "REST".into(), row: 1, col: 4, dir: Dir::Down },
+                    PlacedWord { word: "ROES".into(), row: 3, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "SORE".into(), row: 4, col: 3, dir: Dir::Down },
+                    PlacedWord { word: "TORE".into(), row: 4, col: 4, dir: Dir::Down },
                 ],
             },
 
-            // ============================================================
-            // Level 10: 9 words, 7 letters, grid 9x9 - hardest!
-            // Letters: T R A I N S E
-            //
-            //  . . . . . . . . .
-            //  . T R A I N S . .    TRAINS across (1,1)
-            //  . . I . . . . . .    RISE down: R(1,2) I(2,2) S(3,2) E(4,2)
-            //  . . S . . . . . .
-            //  . . E A R N . . .    EARN across (4,2) shares E(4,2). Match!
-            //  . . . . . . . . .
-            //  . R A I N . . . .    RAIN across (6,1)
-            //  S I N . . . . . .    SIN across (7,0)
-            //  . . . S T E I N .    STEIN across (8,3)
+            // Level 10: TRAINS spine, TEARS/INSET/NEST branch down, ANTS/RISE/NITS/SITE/TIRE cross
+            // Intersections: T(1,1), I(1,4), N(1,5), A(3,1), N(3,2), S(3,4), R(4,1), I(4,2), E(4,4), S(5,1), T(7,1) — all verified
             _ => Self {
                 rows: 9,
                 cols: 9,
                 letters: vec!['T', 'R', 'A', 'I', 'N', 'S', 'E'],
                 words: vec![
                     PlacedWord { word: "TRAINS".into(), row: 1, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "RISE".into(), row: 1, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "EARN".into(), row: 4, col: 2, dir: Dir::Across },
-                    PlacedWord { word: "RAIN".into(), row: 6, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "SIN".into(), row: 7, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "STEIN".into(), row: 8, col: 3, dir: Dir::Across },
-                    PlacedWord { word: "ANTS".into(), row: 1, col: 4, dir: Dir::Down },
-                    PlacedWord { word: "TIRE".into(), row: 1, col: 1, dir: Dir::Down },
-                    PlacedWord { word: "STAIN".into(), row: 3, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "TEARS".into(), row: 1, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "INSET".into(), row: 1, col: 4, dir: Dir::Down },
+                    PlacedWord { word: "NEST".into(), row: 1, col: 5, dir: Dir::Down },
+                    PlacedWord { word: "ANTS".into(), row: 3, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "RISE".into(), row: 4, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "NITS".into(), row: 3, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "SITE".into(), row: 5, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "TIRE".into(), row: 7, col: 1, dir: Dir::Across },
                 ],
             },
         }
@@ -353,16 +202,16 @@ impl Level {
 
     fn bonus_words(&self) -> Vec<&'static str> {
         match self.letters.as_slice() {
-            ['E', 'A', 'T', 'S'] => vec!["SAT", "TEA", "TAS"],
-            ['A', 'G', 'E', 'R', 'N'] => vec!["NAG", "RAG", "RANG", "GEAR", "NEAR"],
-            ['S', 'T', 'O', 'P', 'R', 'E'] => vec!["ROPE", "PORE", "REST", "SORT"],
-            ['L', 'E', 'S', 'S', 'Y', 'T'] => vec!["LETS", "LEST", "STYLES"],
-            ['H', 'O', 'M', 'E', 'S', 'T'] => vec!["THEM", "MOTH", "MOST", "THOSE"],
-            ['B', 'R', 'I', 'C', 'K', 'S'] => vec!["CRIBS", "IRKS"],
-            ['P', 'L', 'A', 'N', 'E', 'T', 'S'] => vec!["SLANT", "PANT", "STEAL", "PLATE"],
-            ['C', 'R', 'A', 'N', 'E', 'S', 'D'] => vec!["DANCE", "SCARE", "RACED", "CEDAR"],
-            ['F', 'L', 'O', 'W', 'E', 'R', 'S'] => vec!["WOLF", "OWES", "SLOWER", "WORSE"],
-            ['T', 'R', 'A', 'I', 'N', 'S', 'E'] => vec!["STARE", "INSERT", "RETAIN", "SATIRE"],
+            ['C', 'A', 'T', 'S'] => vec!["ATS", "SCAT", "TACS"],
+            ['S', 'P', 'I', 'N', 'E'] => vec!["NIP", "SIP", "SNIP", "PIES", "PENS", "SINE"],
+            ['H', 'A', 'S', 'T', 'E'] => vec!["EAT", "ATE", "ETA", "SEAT", "EAST", "EATS"],
+            ['W', 'A', 'R', 'M', 'S'] => vec!["SWAM", "WARM", "MAR", "RAW"],
+            ['C', 'A', 'R', 'E', 'S'] => vec!["RACE", "SCAR", "ARCS", "ACRE", "SCARE", "ACES"],
+            ['G', 'R', 'I', 'N', 'D', 'S'] => vec!["DING", "RING", "GRIN", "GRINS", "RINGS"],
+            ['P', 'L', 'A', 'N', 'E', 'T', 'S'] => vec!["PLAN", "PLANT", "LEAN", "SLANT", "PLATE", "STEAL"],
+            ['C', 'R', 'A', 'N', 'E', 'S', 'D'] => vec!["DANCE", "SCARE", "RACED", "CEDAR", "CANE", "SANE"],
+            ['S', 'T', 'O', 'R', 'E', 'D'] => vec!["RODE", "DOSE", "DOER", "STORE", "RESTED"],
+            ['T', 'R', 'A', 'I', 'N', 'S', 'E'] => vec!["STARE", "RETAIN", "SATIRE", "INSERT", "STAIN", "RAIN"],
             _ => vec![],
         }
     }
