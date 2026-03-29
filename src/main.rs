@@ -35,100 +35,93 @@ impl Level {
         match level_num {
             // All levels use "spine + branches" pattern for guaranteed connectivity.
             // Every word shares at least one cell with another word.
-            // Level 1: CAST spine, ACT/SAT branch down, CAT crosses SAT
-            // Intersections: C(1,0), S(1,2), T(3,2) — all verified
+            // Level 1: CAST spine across, CAT/SAT branch down (cols 0 and 2, non-adjacent)
+            // Intersections: C(1,0), S(1,2) — all verified
+            // Col 0: C,A,T = CAT ✓  Col 2: S,A,T = SAT ✓  Row 1: C,A,S,T = CAST ✓
             1 => Self {
                 rows: 5,
                 cols: 5,
                 letters: vec!['C', 'A', 'T', 'S'],
                 words: vec![
                     PlacedWord { word: "CAST".into(), row: 1, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "ACT".into(), row: 0, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "CAT".into(), row: 1, col: 0, dir: Dir::Down },
                     PlacedWord { word: "SAT".into(), row: 1, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "CAT".into(), row: 3, col: 0, dir: Dir::Across },
                 ],
             },
 
-            // Level 2: SPINE vertical spine, 4 across words branch off
-            // Intersections: P(1,2), I(2,2), N(3,2), E(4,2) — all verified
+            // Level 2: SPINE across, SIN/NIP down (spaced cols 0,3), PEN crosses NIP
+            // Every contiguous run verified: Row1=SPINE, Col0=SIN, Col3=NIP, Row3=PEN
             2 => Self {
                 rows: 6,
                 cols: 6,
                 letters: vec!['S', 'P', 'I', 'N', 'E'],
                 words: vec![
-                    PlacedWord { word: "SPINE".into(), row: 0, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "PIN".into(), row: 1, col: 2, dir: Dir::Across },
-                    PlacedWord { word: "SIN".into(), row: 2, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "PEN".into(), row: 3, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "PIE".into(), row: 4, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "SPINE".into(), row: 1, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "SIN".into(), row: 1, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "NIP".into(), row: 1, col: 3, dir: Dir::Down },
+                    PlacedWord { word: "PEN".into(), row: 3, col: 3, dir: Dir::Across },
                 ],
             },
 
-            // Level 3: HASTE spine, HEAT/SET branch down, HAT/TEA cross HEAT
-            // Intersections: H(1,1), S(1,3), A(3,1), T(4,1) — all verified
+            // Level 3: HASTE across, HATE/SEAT down (spaced cols 0,2), EAT crosses both
+            // Every contiguous run verified: Row1=HASTE, Col0=HATE, Col2=SEAT, Row4=EAT
             3 => Self {
                 rows: 7,
                 cols: 7,
                 letters: vec!['H', 'A', 'S', 'T', 'E'],
                 words: vec![
-                    PlacedWord { word: "HASTE".into(), row: 1, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "HEAT".into(), row: 1, col: 1, dir: Dir::Down },
-                    PlacedWord { word: "SET".into(), row: 1, col: 3, dir: Dir::Down },
-                    PlacedWord { word: "HAT".into(), row: 3, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "TEA".into(), row: 4, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "HASTE".into(), row: 1, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "HATE".into(), row: 1, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "SEAT".into(), row: 1, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "EAT".into(), row: 4, col: 0, dir: Dir::Across },
                 ],
             },
 
-            // Level 4: WARMS spine, WAR/MARS branch down, SAW/RAM cross, ARMS overlaps
-            // Intersections: W(2,1), M(2,4), A(3,1), R(4,1) — all verified
+            // Level 4: SWARM across, SAW/RAM down (spaced cols 0,3), WARM crosses both
+            // Every contiguous run verified: Row1=SWARM, Col0=SAW, Col3=RAM, Row3=WARM
             4 => Self {
                 rows: 7,
                 cols: 7,
                 letters: vec!['W', 'A', 'R', 'M', 'S'],
                 words: vec![
-                    PlacedWord { word: "WARMS".into(), row: 2, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "WAR".into(), row: 2, col: 1, dir: Dir::Down },
-                    PlacedWord { word: "MARS".into(), row: 2, col: 4, dir: Dir::Down },
-                    PlacedWord { word: "SAW".into(), row: 3, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "RAM".into(), row: 4, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "ARMS".into(), row: 3, col: 1, dir: Dir::Down },
+                    PlacedWord { word: "SWARM".into(), row: 1, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "SAW".into(), row: 1, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "RAM".into(), row: 1, col: 3, dir: Dir::Down },
+                    PlacedWord { word: "WARM".into(), row: 3, col: 0, dir: Dir::Across },
                 ],
             },
 
-            // Level 5: CARES spine, CARS/EARS branch down, ACE/ERA/ARC cross
-            // Intersections: C(1,1), E(1,4), A(2,4), R(3,1), A(3,2) — all verified
+            // Level 5: CARES across, CARE/SEAR down (spaced cols 0,4), ERA crosses CARE
+            // Every contiguous run verified: Row1=CARES, Col0=CARE, Col4=SEAR, Row4=ERA
             5 => Self {
                 rows: 7,
                 cols: 7,
                 letters: vec!['C', 'A', 'R', 'E', 'S'],
                 words: vec![
-                    PlacedWord { word: "CARES".into(), row: 1, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "CARS".into(), row: 1, col: 1, dir: Dir::Down },
-                    PlacedWord { word: "EARS".into(), row: 1, col: 4, dir: Dir::Down },
-                    PlacedWord { word: "ACE".into(), row: 2, col: 4, dir: Dir::Across },
-                    PlacedWord { word: "ERA".into(), row: 3, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "ARC".into(), row: 3, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "CARES".into(), row: 1, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "CARE".into(), row: 1, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "SEAR".into(), row: 1, col: 4, dir: Dir::Down },
+                    PlacedWord { word: "ERA".into(), row: 4, col: 0, dir: Dir::Across },
                 ],
             },
 
-            // Level 6: GRINDS spine, GRID/RIND/DIN/SIR branch down, RIG crosses
-            // Intersections: G(1,0), R(1,1), D(1,4), S(1,5), R(2,0), I(2,1) — all verified
+            // Level 6: GRINS across, GIN/SIR down (spaced cols 0,4), RID crosses SIR, DIG down from RID
+            // Every contiguous run verified: Row1=GRINS, Col0=GIN, Col4=SIR, Row3(4-6)=RID, Col6=DIG
             6 => Self {
                 rows: 7,
                 cols: 7,
                 letters: vec!['G', 'R', 'I', 'N', 'D', 'S'],
                 words: vec![
-                    PlacedWord { word: "GRINDS".into(), row: 1, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "GRID".into(), row: 1, col: 0, dir: Dir::Down },
-                    PlacedWord { word: "RIND".into(), row: 1, col: 1, dir: Dir::Down },
-                    PlacedWord { word: "DIN".into(), row: 1, col: 4, dir: Dir::Down },
-                    PlacedWord { word: "SIR".into(), row: 1, col: 5, dir: Dir::Down },
-                    PlacedWord { word: "RIG".into(), row: 2, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "GRINS".into(), row: 1, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "GIN".into(), row: 1, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "SIR".into(), row: 1, col: 4, dir: Dir::Down },
+                    PlacedWord { word: "RID".into(), row: 3, col: 4, dir: Dir::Across },
+                    PlacedWord { word: "DIG".into(), row: 3, col: 6, dir: Dir::Down },
                 ],
             },
 
-            // Level 7: PLANETS spine, PETAL/NETS/TALE branch down, TENT/ANTS/LANE cross
-            // Intersections: P(1,0), N(1,3), T(1,5), T(3,0), T(3,3), A(4,0), S(4,3), L(5,0) — all verified
+            // Level 7: PLANETS across, PETAL/NETS/SLANT down (spaced cols 0,3,6), ANTS crosses PETAL+NETS
+            // Every contiguous run verified: Row1=PLANETS, Col0=PETAL, Col3=NETS, Col6=SLANT, Row4=ANTS
             7 => Self {
                 rows: 8,
                 cols: 8,
@@ -137,64 +130,55 @@ impl Level {
                     PlacedWord { word: "PLANETS".into(), row: 1, col: 0, dir: Dir::Across },
                     PlacedWord { word: "PETAL".into(), row: 1, col: 0, dir: Dir::Down },
                     PlacedWord { word: "NETS".into(), row: 1, col: 3, dir: Dir::Down },
-                    PlacedWord { word: "TALE".into(), row: 1, col: 5, dir: Dir::Down },
-                    PlacedWord { word: "TENT".into(), row: 3, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "SLANT".into(), row: 1, col: 6, dir: Dir::Down },
                     PlacedWord { word: "ANTS".into(), row: 4, col: 0, dir: Dir::Across },
-                    PlacedWord { word: "LANE".into(), row: 5, col: 0, dir: Dir::Across },
                 ],
             },
 
-            // Level 8: CRANES spine, CARED/NEARS branch down, ACRE/RAN/DENS/END cross
-            // Intersections: C(1,1), N(1,4), A(2,1), E(2,4), R(3,1), D(5,1), S(5,4), E(5,2) — all verified
+            // Level 8: CRANES across, CARED/NEARS/SANE down (spaced cols 0,3,5), DENS+END cross
+            // Every contiguous run verified: Row1=CRANES, Col0=CARED, Col3=NEARS, Col5=SANE, Row5=DENS, Col1(5-7)=END
             8 => Self {
                 rows: 8,
                 cols: 8,
                 letters: vec!['C', 'R', 'A', 'N', 'E', 'S', 'D'],
                 words: vec![
-                    PlacedWord { word: "CRANES".into(), row: 1, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "CARED".into(), row: 1, col: 1, dir: Dir::Down },
-                    PlacedWord { word: "NEARS".into(), row: 1, col: 4, dir: Dir::Down },
-                    PlacedWord { word: "ACRE".into(), row: 2, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "RAN".into(), row: 3, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "DENS".into(), row: 5, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "END".into(), row: 5, col: 2, dir: Dir::Down },
+                    PlacedWord { word: "CRANES".into(), row: 1, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "CARED".into(), row: 1, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "NEARS".into(), row: 1, col: 3, dir: Dir::Down },
+                    PlacedWord { word: "SANE".into(), row: 1, col: 5, dir: Dir::Down },
+                    PlacedWord { word: "DENS".into(), row: 5, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "END".into(), row: 5, col: 1, dir: Dir::Down },
                 ],
             },
 
-            // Level 9: STORED spine, SORT/TROD/ODES/REST branch down, ROES/SORE/TORE cross
-            // Intersections: S(1,1), T(1,2), O(1,3), R(1,4), R(3,1), O(3,2), E(3,3), S(3,4), S(4,3), T(4,4) — all verified
+            // Level 9: STORED across, SORT/REST/DOSE down (spaced cols 0,3,5), ROES crosses SORT+REST
+            // Every contiguous run verified: Row1=STORED, Col0=SORT, Col3=REST, Col5=DOSE, Row3=ROES
             9 => Self {
                 rows: 8,
                 cols: 8,
                 letters: vec!['S', 'T', 'O', 'R', 'E', 'D'],
                 words: vec![
-                    PlacedWord { word: "STORED".into(), row: 1, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "SORT".into(), row: 1, col: 1, dir: Dir::Down },
-                    PlacedWord { word: "TROD".into(), row: 1, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "ODES".into(), row: 1, col: 3, dir: Dir::Down },
-                    PlacedWord { word: "REST".into(), row: 1, col: 4, dir: Dir::Down },
-                    PlacedWord { word: "ROES".into(), row: 3, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "SORE".into(), row: 4, col: 3, dir: Dir::Down },
-                    PlacedWord { word: "TORE".into(), row: 4, col: 4, dir: Dir::Down },
+                    PlacedWord { word: "STORED".into(), row: 1, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "SORT".into(), row: 1, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "REST".into(), row: 1, col: 3, dir: Dir::Down },
+                    PlacedWord { word: "DOSE".into(), row: 1, col: 5, dir: Dir::Down },
+                    PlacedWord { word: "ROES".into(), row: 3, col: 0, dir: Dir::Across },
                 ],
             },
 
-            // Level 10: TRAINS spine, TEARS/INSET/NEST branch down, ANTS/RISE/NITS/SITE/TIRE cross
-            // Intersections: T(1,1), I(1,4), N(1,5), A(3,1), N(3,2), S(3,4), R(4,1), I(4,2), E(4,4), S(5,1), T(7,1) — all verified
+            // Level 10: TRAINS across, TEARS/INSET/SIREN down (spaced cols 0,3,5), ANTS+SENT cross
+            // Every contiguous run verified: Row1=TRAINS, Col0=TEARS, Col3=INSET, Col5=SIREN, Row3=ANTS, Row5=SENT
             _ => Self {
                 rows: 9,
                 cols: 9,
                 letters: vec!['T', 'R', 'A', 'I', 'N', 'S', 'E'],
                 words: vec![
-                    PlacedWord { word: "TRAINS".into(), row: 1, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "TEARS".into(), row: 1, col: 1, dir: Dir::Down },
-                    PlacedWord { word: "INSET".into(), row: 1, col: 4, dir: Dir::Down },
-                    PlacedWord { word: "NEST".into(), row: 1, col: 5, dir: Dir::Down },
-                    PlacedWord { word: "ANTS".into(), row: 3, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "RISE".into(), row: 4, col: 1, dir: Dir::Across },
-                    PlacedWord { word: "NITS".into(), row: 3, col: 2, dir: Dir::Down },
-                    PlacedWord { word: "SITE".into(), row: 5, col: 1, dir: Dir::Down },
-                    PlacedWord { word: "TIRE".into(), row: 7, col: 1, dir: Dir::Across },
+                    PlacedWord { word: "TRAINS".into(), row: 1, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "TEARS".into(), row: 1, col: 0, dir: Dir::Down },
+                    PlacedWord { word: "INSET".into(), row: 1, col: 3, dir: Dir::Down },
+                    PlacedWord { word: "SIREN".into(), row: 1, col: 5, dir: Dir::Down },
+                    PlacedWord { word: "ANTS".into(), row: 3, col: 0, dir: Dir::Across },
+                    PlacedWord { word: "SENT".into(), row: 5, col: 0, dir: Dir::Across },
                 ],
             },
         }
@@ -202,16 +186,16 @@ impl Level {
 
     fn bonus_words(&self) -> Vec<&'static str> {
         match self.letters.as_slice() {
-            ['C', 'A', 'T', 'S'] => vec!["ATS", "SCAT", "TACS"],
-            ['S', 'P', 'I', 'N', 'E'] => vec!["NIP", "SIP", "SNIP", "PIES", "PENS", "SINE"],
-            ['H', 'A', 'S', 'T', 'E'] => vec!["EAT", "ATE", "ETA", "SEAT", "EAST", "EATS"],
-            ['W', 'A', 'R', 'M', 'S'] => vec!["SWAM", "WARM", "MAR", "RAW"],
-            ['C', 'A', 'R', 'E', 'S'] => vec!["RACE", "SCAR", "ARCS", "ACRE", "SCARE", "ACES"],
-            ['G', 'R', 'I', 'N', 'D', 'S'] => vec!["DING", "RING", "GRIN", "GRINS", "RINGS"],
-            ['P', 'L', 'A', 'N', 'E', 'T', 'S'] => vec!["PLAN", "PLANT", "LEAN", "SLANT", "PLATE", "STEAL"],
-            ['C', 'R', 'A', 'N', 'E', 'S', 'D'] => vec!["DANCE", "SCARE", "RACED", "CEDAR", "CANE", "SANE"],
-            ['S', 'T', 'O', 'R', 'E', 'D'] => vec!["RODE", "DOSE", "DOER", "STORE", "RESTED"],
-            ['T', 'R', 'A', 'I', 'N', 'S', 'E'] => vec!["STARE", "RETAIN", "SATIRE", "INSERT", "STAIN", "RAIN"],
+            ['C', 'A', 'T', 'S'] => vec!["ACT", "ACTS", "SCAT", "CATS"],
+            ['S', 'P', 'I', 'N', 'E'] => vec!["PIN", "PIE", "SIP", "SNIP", "PIES", "PENS", "SINE", "PINE"],
+            ['H', 'A', 'S', 'T', 'E'] => vec!["HEAT", "SET", "HAT", "TEA", "ATE", "ETA", "EAST", "EATS"],
+            ['W', 'A', 'R', 'M', 'S'] => vec!["WARMS", "WARS", "ARMS", "MARS", "ARM", "MAR", "RAW", "WAR"],
+            ['C', 'A', 'R', 'E', 'S'] => vec!["RACE", "CARS", "EARS", "ACE", "ARC", "SCAR", "ARCS", "ACRE", "ACES"],
+            ['G', 'R', 'I', 'N', 'D', 'S'] => vec!["GRINDS", "GRID", "RIND", "DING", "RING", "GRIN", "RINGS"],
+            ['P', 'L', 'A', 'N', 'E', 'T', 'S'] => vec!["PLAN", "PLANT", "LEAN", "PLATE", "STEAL", "LANE", "TALE", "TENT"],
+            ['C', 'R', 'A', 'N', 'E', 'S', 'D'] => vec!["DANCE", "SCARE", "RACED", "CEDAR", "CANE", "ACRE", "RAN"],
+            ['S', 'T', 'O', 'R', 'E', 'D'] => vec!["RODE", "DOER", "STORE", "DOTES", "TROD", "ODES", "SORE", "TORE"],
+            ['T', 'R', 'A', 'I', 'N', 'S', 'E'] => vec!["STARE", "RETAIN", "SATIRE", "INSERT", "STAIN", "RAIN", "RISE", "TIRE"],
             _ => vec![],
         }
     }
@@ -264,6 +248,7 @@ struct GameState {
     coins: u32,
     bonus_found: HashSet<String>,
     hints_left: u32,
+    words_toward_hint: u32,
 }
 
 impl GameState {
@@ -289,7 +274,8 @@ impl GameState {
             selection: Vec::new(),
             coins,
             bonus_found: HashSet::new(),
-            hints_left: 3,
+            hints_left: 5,
+            words_toward_hint: 0,
         }
     }
 
@@ -342,9 +328,17 @@ impl GameState {
 
         if self.answers.contains(&guess) {
             if self.found.insert(guess.clone()) {
-                self.coins = self.coins.saturating_add(5);
+                self.coins = self.coins.saturating_add(2);
+                self.words_toward_hint += 1;
+                let hint_msg = if self.words_toward_hint >= 10 {
+                    self.words_toward_hint = 0;
+                    self.hints_left += 1;
+                    " +1 hint!"
+                } else {
+                    ""
+                };
                 self.clear_selection();
-                return format!("Found: {} (+5 coins)", guess);
+                return format!("Found: {} (+2 pts){}", guess, hint_msg);
             } else {
                 self.clear_selection();
                 return "Already found.".to_string();
@@ -353,9 +347,17 @@ impl GameState {
 
         if self.bonus_words.contains(&guess) {
             if self.bonus_found.insert(guess.clone()) {
-                self.coins = self.coins.saturating_add(1);
+                self.coins = self.coins.saturating_add(2);
+                self.words_toward_hint += 1;
+                let hint_msg = if self.words_toward_hint >= 10 {
+                    self.words_toward_hint = 0;
+                    self.hints_left += 1;
+                    " +1 hint!"
+                } else {
+                    ""
+                };
                 self.clear_selection();
-                return format!("Bonus: {} (+1 coin)", guess);
+                return format!("Bonus: {} (+2 pts){}", guess, hint_msg);
             } else {
                 self.clear_selection();
                 return "Bonus already counted.".to_string();
@@ -368,11 +370,7 @@ impl GameState {
 
     fn hint_reveal_random_letter(&mut self) -> String {
         if self.hints_left == 0 {
-            return "No hints left!".to_string();
-        }
-        let hint_cost = 10;
-        if self.coins < hint_cost {
-            return format!("Not enough coins (need {}).", hint_cost);
+            return "No hints left! Find more words to earn hints.".to_string();
         }
 
         let visible = self.visible_letters_map();
@@ -393,9 +391,8 @@ impl GameState {
 
         if let Some(ch) = self.level.solution_letter_at(r, c) {
             self.revealed.insert((r, c), ch);
-            self.coins -= hint_cost;
             self.hints_left -= 1;
-            return format!("Revealed a letter (-{} coins).", hint_cost);
+            return "Revealed a letter!".to_string();
         }
 
         "Hint failed.".to_string()
@@ -440,8 +437,10 @@ impl GameApp {
 
     fn go_to_level(&mut self, level_num: usize) {
         let coins = self.game.coins;
+        let words_toward_hint = self.game.words_toward_hint;
         self.current_level = level_num;
         self.game = GameState::new(level_num, coins);
+        self.game.words_toward_hint = words_toward_hint;
         self.status = String::new();
         self.drag_active = false;
     }
@@ -902,9 +901,14 @@ impl eframe::App for GameApp {
                     egui::Color32::WHITE,
                 );
                 // Hint count badge
-                if self.game.hints_left > 0 {
+                {
                     let badge_pos = egui::pos2(hint_center.x + 16.0, hint_center.y - 16.0);
-                    painter.circle_filled(badge_pos, 10.0, egui::Color32::from_rgb(220, 50, 50));
+                    let badge_color = if self.game.hints_left > 0 {
+                        egui::Color32::from_rgb(50, 180, 80)
+                    } else {
+                        egui::Color32::from_rgb(120, 120, 120)
+                    };
+                    painter.circle_filled(badge_pos, 10.0, badge_color);
                     painter.text(
                         badge_pos,
                         egui::Align2::CENTER_CENTER,
@@ -912,6 +916,26 @@ impl eframe::App for GameApp {
                         egui::FontId::proportional(12.0),
                         egui::Color32::WHITE,
                     );
+                }
+                // Hint progress bar (words_toward_hint / 10)
+                {
+                    let bar_w = hint_size;
+                    let bar_h = 6.0;
+                    let bar_x = hint_center.x - bar_w / 2.0;
+                    let bar_y = hint_center.y + hint_size / 2.0 + 4.0;
+                    let bar_rect = egui::Rect::from_min_size(
+                        egui::pos2(bar_x, bar_y),
+                        egui::vec2(bar_w, bar_h),
+                    );
+                    painter.rect_filled(bar_rect, 3.0, egui::Color32::from_rgb(40, 40, 60));
+                    let progress = self.game.words_toward_hint as f32 / 10.0;
+                    if progress > 0.0 {
+                        let fill_rect = egui::Rect::from_min_size(
+                            bar_rect.min,
+                            egui::vec2(bar_w * progress, bar_h),
+                        );
+                        painter.rect_filled(fill_rect, 3.0, egui::Color32::from_rgb(80, 220, 120));
+                    }
                 }
                 if hint_resp.clicked() {
                     self.status = self.game.hint_reveal_random_letter();
@@ -1018,7 +1042,7 @@ impl eframe::App for GameApp {
                     painter.text(
                         egui::pos2(overlay.center().x, overlay.min.y + 58.0),
                         egui::Align2::CENTER_CENTER,
-                        "+10 coins bonus!",
+                        "+10 pts bonus!",
                         egui::FontId::proportional(15.0),
                         egui::Color32::from_rgb(255, 220, 80),
                     );
