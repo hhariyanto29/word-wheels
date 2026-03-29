@@ -206,7 +206,7 @@ VALID_WORDS = {
     "SWAM", "MARS",
     "ARCS", "ACES", "SCAT",
     "DING", "GRIN",
-    "LEAN", "PLATE", "SLANT",
+    "LEAN", "PLATE", "SLANT", "PELT",
     "RACED", "CEDAR", "SANE",
     "RODE", "DOSE", "DOER", "DOTES",
     "RETAIN", "SATIRE", "INSERT", "STAIN", "RAIN",

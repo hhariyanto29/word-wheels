@@ -192,7 +192,7 @@ impl Level {
             ['W', 'A', 'R', 'M', 'S'] => vec!["WARMS", "WARS", "ARMS", "MARS", "ARM", "MAR", "RAW", "WAR"],
             ['C', 'A', 'R', 'E', 'S'] => vec!["RACE", "CARS", "EARS", "ACE", "ARC", "SCAR", "ARCS", "ACRE", "ACES"],
             ['G', 'R', 'I', 'N', 'D', 'S'] => vec!["GRINDS", "GRID", "RIND", "DING", "RING", "GRIN", "RINGS"],
-            ['P', 'L', 'A', 'N', 'E', 'T', 'S'] => vec!["PLAN", "PLANT", "LEAN", "PLATE", "STEAL", "LANE", "TALE", "TENT"],
+            ['P', 'L', 'A', 'N', 'E', 'T', 'S'] => vec!["PLAN", "PLANT", "LEAN", "PLATE", "STEAL", "LANE", "TALE", "PELT"],
             ['C', 'R', 'A', 'N', 'E', 'S', 'D'] => vec!["DANCE", "SCARE", "RACED", "CEDAR", "CANE", "ACRE", "RAN"],
             ['S', 'T', 'O', 'R', 'E', 'D'] => vec!["RODE", "DOER", "STORE", "DOTES", "TROD", "ODES", "SORE", "TORE"],
             ['T', 'R', 'A', 'I', 'N', 'S', 'E'] => vec!["STARE", "RETAIN", "SATIRE", "INSERT", "STAIN", "RAIN", "RISE", "TIRE"],
@@ -438,9 +438,11 @@ impl GameApp {
     fn go_to_level(&mut self, level_num: usize) {
         let coins = self.game.coins;
         let words_toward_hint = self.game.words_toward_hint;
+        let hints_left = self.game.hints_left;
         self.current_level = level_num;
         self.game = GameState::new(level_num, coins);
         self.game.words_toward_hint = words_toward_hint;
+        self.game.hints_left = hints_left;
         self.status = String::new();
         self.drag_active = false;
     }
