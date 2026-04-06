@@ -534,7 +534,7 @@ impl eframe::App for GameApp {
         self.load_bg_texture(ctx);
 
         egui::CentralPanel::default()
-            .frame(egui::Frame::none())
+            .frame(egui::Frame::NONE)
             .show(ctx, |ui| {
                 let full_rect = ui.max_rect();
                 let painter = ui.painter();
@@ -648,7 +648,7 @@ impl eframe::App for GameApp {
                 );
                 paint_drop_shadow(painter, grid_backdrop, 16.0, 5, 10.0);
                 painter.rect_filled(grid_backdrop, 16.0, egui::Color32::from_rgba_premultiplied(10, 25, 60, 180));
-                painter.rect_stroke(grid_backdrop, 16.0, egui::Stroke::new(1.0, egui::Color32::from_rgba_premultiplied(255, 255, 255, 25)));
+                painter.rect_stroke(grid_backdrop, 16.0, egui::Stroke::new(1.0, egui::Color32::from_rgba_premultiplied(255, 255, 255, 25)), egui::StrokeKind::Outside);
 
                 for r in 0..self.game.level.rows {
                     for c in 0..self.game.level.cols {
@@ -966,6 +966,7 @@ impl eframe::App for GameApp {
                     submit_rect,
                     20.0,
                     egui::Stroke::new(1.5, egui::Color32::from_rgba_premultiplied(255, 255, 255, 50)),
+                    egui::StrokeKind::Outside,
                 );
                 painter.text(
                     submit_rect.center(),
@@ -1025,6 +1026,7 @@ impl eframe::App for GameApp {
                         overlay,
                         16.0,
                         egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 160, 255)),
+                        egui::StrokeKind::Outside,
                     );
 
                     let title = if is_last_level {
@@ -1072,6 +1074,7 @@ impl eframe::App for GameApp {
                         next_rect,
                         19.0,
                         egui::Stroke::new(1.5, egui::Color32::from_rgba_premultiplied(255, 255, 255, 60)),
+                        egui::StrokeKind::Outside,
                     );
                     painter.text(
                         next_rect.center(),
@@ -1118,16 +1121,10 @@ impl eframe::App for GameApp {
 
 // Android entry point
 #[cfg(target_os = "android")]
-use winit::platform::android::activity::AndroidApp;
-
-#[cfg(target_os = "android")]
 #[no_mangle]
-fn android_main(app: AndroidApp) {
+fn android_main(app: eframe::winit::platform::android::activity::AndroidApp) {
     let options = eframe::NativeOptions {
-        event_loop_builder: Some(Box::new(move |builder| {
-            use winit::platform::android::EventLoopBuilderExtAndroid;
-            builder.with_android_app(app);
-        })),
+        android_app: Some(app),
         renderer: eframe::Renderer::Glow,
         ..Default::default()
     };
