@@ -1122,7 +1122,7 @@ impl eframe::App for GameApp {
 // Android entry point
 #[cfg(target_os = "android")]
 #[no_mangle]
-fn android_main(app: eframe::winit::platform::android::activity::AndroidApp) {
+fn android_main(app: winit::platform::android::activity::AndroidApp) {
     let options = eframe::NativeOptions {
         android_app: Some(app),
         renderer: eframe::Renderer::Glow,
