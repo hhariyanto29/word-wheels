@@ -1,29 +1,17 @@
-[package]
-name = "word_wheel_crossword"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = [
+    "core",
+    "desktop",
+    "android",
+    "web",
+    "ios",
+]
+resolver = "2"
 
-[lib]
-crate-type = ["lib", "cdylib"]
-
-[[bin]]
-name = "word_wheel_crossword"
-path = "src/main.rs"
-
-[features]
-default = ["desktop"]
-desktop = []
-android = ["eframe/android-native-activity"]
-
-[dependencies]
+[workspace.dependencies]
 eframe = { version = "0.31.1", default-features = false, features = ["default_fonts", "glow"] }
 egui = "0.31.1"
 rand = "0.8"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 image = { version = "0.24", default-features = false, features = ["png", "jpeg"] }
-
-[target.'cfg(target_os = "android")'.dependencies]
-winit = { version = "0.30", default-features = false }
-android_logger = "0.14"
-log = "0.4"

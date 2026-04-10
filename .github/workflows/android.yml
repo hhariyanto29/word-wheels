@@ -58,7 +58,7 @@ jobs:
             --platform 26 \
             -o android/app/src/main/jniLibs \
             --link-libcxx-shared \
-            build --release --lib --no-default-features --features android
+            build --release -p word_wheel_android
 
       - name: Generate Gradle wrapper
         working-directory: android

@@ -1,5 +1,5 @@
 use eframe::egui;
-use word_wheel_crossword::GameApp;
+use word_wheel_core::GameApp;
 
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
