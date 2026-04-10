@@ -451,7 +451,7 @@ impl GameApp {
         if self.bg_texture.is_some() {
             return;
         }
-        let img_bytes = include_bytes!("../assets/background.jpg");
+        let img_bytes = include_bytes!("../../assets/background.jpg");
         if let Ok(img) = image::load_from_memory(img_bytes) {
             let rgba = img.to_rgba8();
             let size = [rgba.width() as usize, rgba.height() as usize];
@@ -1117,21 +1117,4 @@ impl eframe::App for GameApp {
         // Request continuous repaint for smooth interaction
         ctx.request_repaint();
     }
-}
-
-// Android entry point
-#[cfg(target_os = "android")]
-#[no_mangle]
-fn android_main(app: winit::platform::android::activity::AndroidApp) {
-    let options = eframe::NativeOptions {
-        android_app: Some(app),
-        renderer: eframe::Renderer::Glow,
-        ..Default::default()
-    };
-    eframe::run_native(
-        "Word Wheel",
-        options,
-        Box::new(|_cc| Ok(Box::new(GameApp::new()))),
-    )
-    .unwrap();
 }
