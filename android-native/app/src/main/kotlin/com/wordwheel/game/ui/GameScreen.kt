@@ -123,10 +123,6 @@ fun GameScreen() {
                 LetterWheel(
                     tiles = game.tiles,
                     selection = game.selection,
-                    onSelectionChange = { newSel ->
-                        game.selection.clear()
-                        game.selection.addAll(newSel)
-                    },
                     onSubmit = {
                         if (game.currentWord().length >= 2) {
                             status = game.trySubmit()
