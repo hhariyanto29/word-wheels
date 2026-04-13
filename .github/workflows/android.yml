@@ -2,14 +2,34 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'claude/**'
+      - 'feature/**'
+    paths:
+      - 'android-native/**'
+      - '.github/workflows/android.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'android-native/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Which APK variant to build'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - debug
+          - release
+          - both
 
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -34,6 +54,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            android-native/.gradle
           key: ${{ runner.os }}-gradle-${{ hashFiles('android-native/**/*.gradle*', 'android-native/**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
@@ -43,16 +64,35 @@ jobs:
         run: gradle wrapper --gradle-version 8.7
 
       - name: Build debug APK
+        if: github.event_name != 'workflow_dispatch' || inputs.build_type == 'debug' || inputs.build_type == 'both'
         working-directory: android-native
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Build release APK (unsigned)
+        if: github.event_name != 'workflow_dispatch' || inputs.build_type == 'release' || inputs.build_type == 'both'
         working-directory: android-native
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
+      - name: Report APK sizes
+        if: always()
+        working-directory: android-native
+        run: |
+          echo "## APK Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Variant | Size | Path |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------|------|" >> $GITHUB_STEP_SUMMARY
+          for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
+            if [ -f "$apk" ]; then
+              size=$(du -h "$apk" | cut -f1)
+              echo "| $(basename $(dirname $apk)) | $size | $apk |" >> $GITHUB_STEP_SUMMARY
+              echo "$(basename $apk): $size"
+            fi
+          done
+
       - name: Upload debug APK
+        if: always() && hashFiles('android-native/app/build/outputs/apk/debug/*.apk') != ''
         uses: actions/upload-artifact@v4
         with:
           name: word-wheel-debug-apk
@@ -60,8 +100,19 @@ jobs:
           retention-days: 30
 
       - name: Upload release APK (unsigned)
+        if: always() && hashFiles('android-native/app/build/outputs/apk/release/*.apk') != ''
         uses: actions/upload-artifact@v4
         with:
           name: word-wheel-release-apk-unsigned
           path: android-native/app/build/outputs/apk/release/*.apk
           retention-days: 30
+
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: |
+            android-native/app/build/reports/
+            android-native/app/build/outputs/logs/
+          retention-days: 7
