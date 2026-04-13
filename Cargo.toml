@@ -2,9 +2,7 @@
 members = [
     "core",
     "desktop",
-    "android",
     "web",
-    "ios",
 ]
 resolver = "2"
 

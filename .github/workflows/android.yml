@@ -6,13 +6,10 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -27,53 +24,44 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android NDK and build tools
+      - name: Install Android build tools
         run: |
-          sdkmanager --install "ndk;26.1.10909125" "build-tools;34.0.0" "platforms;android-34"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+          sdkmanager --install "build-tools;34.0.0" "platforms;android-34"
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android
-
-      - name: Cache Rust dependencies
+      - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-android-${{ hashFiles('**/Cargo.lock') }}
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android-native/**/*.gradle*', 'android-native/**/gradle-wrapper.properties') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-android-
-
-      - name: Install cargo-ndk
-        run: cargo install cargo-ndk --locked
-
-      - name: Build Rust library for Android (arm64)
-        run: |
-          cargo ndk \
-            -t arm64-v8a \
-            --platform 26 \
-            -o android/app/src/main/jniLibs \
-            --link-libcxx-shared \
-            build --release -p word_wheel_android
+            ${{ runner.os }}-gradle-
 
       - name: Generate Gradle wrapper
-        working-directory: android
-        run: |
-          gradle wrapper --gradle-version 8.5
+        working-directory: android-native
+        run: gradle wrapper --gradle-version 8.7
 
       - name: Build debug APK
-        working-directory: android
+        working-directory: android-native
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK artifact
+      - name: Build release APK (unsigned)
+        working-directory: android-native
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: word-wheel-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android-native/app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+
+      - name: Upload release APK (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: word-wheel-release-apk-unsigned
+          path: android-native/app/build/outputs/apk/release/*.apk
           retention-days: 30

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <style name="AppTheme" parent="@android:style/Theme.NoTitleBar.Fullscreen">
-        <item name="android:windowBackground">@drawable/splash_background</item>
-        <item name="android:windowSplashScreenBackground">#FF3C64C8</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
-    </style>
-</resources>
