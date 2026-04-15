@@ -18,15 +18,19 @@ import com.wordwheel.game.theme.GameColors
 
 @Composable
 fun CompletionDialog(isLastLevel: Boolean, onNext: () -> Unit) {
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0x78000000)),
         contentAlignment = Alignment.Center,
     ) {
+        // Cap width at the smaller viewport edge (works for tall phones,
+        // landscape, and small tablets) while never exceeding 320dp.
+        val dialogWidth = minOf(maxWidth, maxHeight) - 48.dp
+        val finalWidth = dialogWidth.coerceIn(220.dp, 320.dp)
         Column(
             modifier = Modifier
-                .width(280.dp)
+                .width(finalWidth)
                 .clip(RoundedCornerShape(16.dp))
                 .background(GameColors.CompleteBg)
                 .border(

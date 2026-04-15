@@ -48,7 +48,6 @@ fun LetterWheel(
 
     Box(
         modifier = modifier
-            .fillMaxWidth()
             .aspectRatio(1f)
             .onSizeChanged { wheelSize = it.toSize() }
             .pointerInput(tiles) {
