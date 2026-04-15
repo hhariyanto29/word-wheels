@@ -19,6 +19,8 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.toSize
+import com.wordwheel.game.audio.LocalSoundManager
+import com.wordwheel.game.audio.Sfx
 import com.wordwheel.game.theme.GameColors
 import kotlin.math.PI
 import kotlin.math.cos
@@ -42,6 +44,7 @@ fun LetterWheel(
 ) {
     var wheelSize by remember { mutableStateOf(Size.Zero) }
     val textMeasurer = rememberTextMeasurer()
+    val sound = LocalSoundManager.current
 
     Box(
         modifier = modifier
@@ -55,12 +58,14 @@ fun LetterWheel(
                         if (hit >= 0) {
                             selection.clear()
                             selection.add(hit)
+                            sound?.play(Sfx.Select)
                         }
                     },
                     onDrag = { change, _ ->
                         val hit = hitTest(wheelSize, tiles.size, change.position)
                         if (hit >= 0 && !selection.contains(hit)) {
                             selection.add(hit)
+                            sound?.play(Sfx.Select)
                         }
                     },
                     onDragEnd = { onSubmit() },
@@ -74,12 +79,14 @@ fun LetterWheel(
                         val center = Offset(wheelSize.width / 2f, wheelSize.height / 2f)
                         val shuffleR = wheelSize.width * 0.09f
                         if (distance(center, pos) <= shuffleR) {
+                            sound?.play(Sfx.Shuffle)
                             onShuffle()
                             return@detectTapGestures
                         }
                         val hit = hitTest(wheelSize, tiles.size, pos)
                         if (hit >= 0 && !selection.contains(hit)) {
                             selection.add(hit)
+                            sound?.play(Sfx.Select)
                         }
                     }
                 )

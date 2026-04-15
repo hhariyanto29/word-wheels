@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wordwheel.game.GameState
 import com.wordwheel.game.Level
+import com.wordwheel.game.audio.LocalSoundManager
+import com.wordwheel.game.audio.Sfx
 import com.wordwheel.game.theme.GameColors
 
 @Composable
@@ -33,6 +35,22 @@ fun GameScreen() {
     }
 
     var status by remember { mutableStateOf("") }
+    val sound = LocalSoundManager.current
+
+    // One-shot completion fanfare when a level is finished.
+    LaunchedEffect(currentLevel, gameKey, game.isComplete()) {
+        if (game.isComplete()) sound?.play(Sfx.Complete)
+    }
+
+    val playForStatus: (String) -> Unit = { msg ->
+        when {
+            msg.startsWith("Found:") -> sound?.play(Sfx.WordFound)
+            msg.startsWith("Bonus:") -> sound?.play(Sfx.Bonus)
+            msg.startsWith("No match") -> sound?.play(Sfx.Wrong)
+            msg.startsWith("Revealed") -> sound?.play(Sfx.Hint)
+            else -> Unit
+        }
+    }
 
     val goToLevel: (Int) -> Unit = { newLevel ->
         carriedCoins = game.coins
@@ -126,6 +144,7 @@ fun GameScreen() {
                     onSubmit = {
                         if (game.currentWord().length >= 2) {
                             status = game.trySubmit()
+                            playForStatus(status)
                         } else {
                             game.clearSelection()
                         }
@@ -137,9 +156,20 @@ fun GameScreen() {
             BottomButtons(
                 hintsLeft = game.hintsLeft,
                 wordsTowardHint = game.wordsTowardHint,
-                onHint = { status = game.hintRevealRandomLetter() },
-                onSubmit = { status = game.trySubmit() },
-                onBackspace = { game.backspace() },
+                onHint = {
+                    status = game.hintRevealRandomLetter()
+                    playForStatus(status)
+                },
+                onSubmit = {
+                    status = game.trySubmit()
+                    playForStatus(status)
+                },
+                onBackspace = {
+                    if (game.selection.isNotEmpty()) {
+                        sound?.play(Sfx.Backspace)
+                        game.backspace()
+                    }
+                },
             )
 
             if (game.bonusFound.isNotEmpty()) {
