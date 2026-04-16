@@ -2,17 +2,34 @@ name: Build Android APK
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'claude/**'
+      - 'feature/**'
+    paths:
+      - 'android-native/**'
+      - '.github/workflows/android.yml'
   pull_request:
     branches: [main]
-
-env:
-  CARGO_TERM_COLOR: always
+    paths:
+      - 'android-native/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Which APK variant to build'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - debug
+          - release
+          - both
 
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -27,53 +44,75 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android NDK and build tools
+      - name: Install Android build tools
         run: |
-          sdkmanager --install "ndk;26.1.10909125" "build-tools;34.0.0" "platforms;android-34"
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+          sdkmanager --install "build-tools;34.0.0" "platforms;android-34"
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android
-
-      - name: Cache Rust dependencies
+      - name: Cache Gradle
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-android-${{ hashFiles('**/Cargo.lock') }}
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            android-native/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('android-native/**/*.gradle*', 'android-native/**/gradle-wrapper.properties') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-android-
-
-      - name: Install cargo-ndk
-        run: cargo install cargo-ndk --locked
-
-      - name: Build Rust library for Android (arm64)
-        run: |
-          cargo ndk \
-            -t arm64-v8a \
-            --platform 26 \
-            -o android/app/src/main/jniLibs \
-            --link-libcxx-shared \
-            build --release -p word_wheel_android
+            ${{ runner.os }}-gradle-
 
       - name: Generate Gradle wrapper
-        working-directory: android
-        run: |
-          gradle wrapper --gradle-version 8.5
+        working-directory: android-native
+        run: gradle wrapper --gradle-version 8.7
 
       - name: Build debug APK
-        working-directory: android
+        if: github.event_name != 'workflow_dispatch' || inputs.build_type == 'debug' || inputs.build_type == 'both'
+        working-directory: android-native
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK artifact
+      - name: Build release APK (unsigned)
+        if: github.event_name != 'workflow_dispatch' || inputs.build_type == 'release' || inputs.build_type == 'both'
+        working-directory: android-native
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Report APK sizes
+        if: always()
+        working-directory: android-native
+        run: |
+          echo "## APK Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Variant | Size | Path |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|------|------|" >> $GITHUB_STEP_SUMMARY
+          for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
+            if [ -f "$apk" ]; then
+              size=$(du -h "$apk" | cut -f1)
+              echo "| $(basename $(dirname $apk)) | $size | $apk |" >> $GITHUB_STEP_SUMMARY
+              echo "$(basename $apk): $size"
+            fi
+          done
+
+      - name: Upload debug APK
+        if: always() && hashFiles('android-native/app/build/outputs/apk/debug/*.apk') != ''
         uses: actions/upload-artifact@v4
         with:
           name: word-wheel-debug-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android-native/app/build/outputs/apk/debug/*.apk
           retention-days: 30
+
+      - name: Upload release APK (unsigned)
+        if: always() && hashFiles('android-native/app/build/outputs/apk/release/*.apk') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: word-wheel-release-apk-unsigned
+          path: android-native/app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: |
+            android-native/app/build/reports/
+            android-native/app/build/outputs/logs/
+          retention-days: 7
