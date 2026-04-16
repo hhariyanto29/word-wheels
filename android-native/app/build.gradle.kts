@@ -9,12 +9,19 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.wordwheel.crossword"
+        applicationId = "com.wordwheel.game"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            // Uses default ~/.android/debug.keystore automatically.
+            // CI generates one if absent — same key per workflow run.
+        }
     }
 
     buildTypes {
@@ -25,6 +32,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Sign release with debug key so the APK is installable for testing.
+            // Replace with a real keystore before publishing to Play Store.
+            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
             isMinifyEnabled = false
