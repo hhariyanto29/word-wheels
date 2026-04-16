@@ -9,7 +9,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.wordwheel.game"
+        applicationId = "com.wordwheel.crossword"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
