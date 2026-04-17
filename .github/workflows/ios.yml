@@ -1,0 +1,93 @@
+name: Build iOS App
+
+on:
+  push:
+    branches:
+      - main
+      - 'claude/**'
+      - 'feature/**'
+    paths:
+      - 'ios-native/**'
+      - '.github/workflows/ios.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ios-native/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios-native
+        run: xcodegen generate
+
+      # Build for the iOS Simulator — no code signing required. This produces
+      # a .app bundle that can be unzipped and inspected, and proves the code
+      # compiles cleanly. Producing a signed .ipa requires an Apple Developer
+      # certificate which is out of scope for this CI.
+      - name: Build (iOS Simulator)
+        working-directory: ios-native
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project WordWheel.xcodeproj \
+            -scheme WordWheel \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build | tee build.log
+
+      - name: Package .app as zip
+        working-directory: ios-native
+        run: |
+          APP_PATH=$(find build -name "WordWheel.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "No WordWheel.app built"; exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" WordWheel-simulator.zip
+          du -h WordWheel-simulator.zip
+
+      - name: Report build size
+        if: always()
+        working-directory: ios-native
+        run: |
+          echo "## iOS Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f WordWheel-simulator.zip ]; then
+            size=$(du -h WordWheel-simulator.zip | cut -f1)
+            echo "| Artifact | Size |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|------|" >> $GITHUB_STEP_SUMMARY
+            echo "| WordWheel-simulator.zip | $size |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload simulator app
+        if: always() && hashFiles('ios-native/WordWheel-simulator.zip') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: word-wheel-ios-simulator
+          path: ios-native/WordWheel-simulator.zip
+          retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-log
+          path: ios-native/build.log
+          retention-days: 7
