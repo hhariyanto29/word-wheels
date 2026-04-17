@@ -12,9 +12,22 @@ android {
         applicationId = "com.wordwheel.game"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 4
+        versionName = "1.3"
         vectorDrawables { useSupportLibrary = true }
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            // Uses default ~/.android/debug.keystore automatically.
+            // Force-enable all three signing schemes. AGP otherwise drops v1
+            // when minSdk>=24, but many devices (Xiaomi/MIUI, Samsung Secure
+            // Folder, older file-manager installers) still reject v2-only
+            // APKs with "App not installed as package appears to be invalid".
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
     }
 
     buildTypes {
@@ -25,6 +38,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Sign release with debug key so the APK is installable for testing.
+            // Replace with a real keystore before publishing to Play Store.
+            signingConfig = signingConfigs.getByName("debug")
         }
         debug {
             isMinifyEnabled = false
