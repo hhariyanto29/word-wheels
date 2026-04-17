@@ -1,5 +1,6 @@
 package com.wordwheel.game.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,12 +12,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wordwheel.game.GameState
 import com.wordwheel.game.Level
+import com.wordwheel.game.R
 import com.wordwheel.game.audio.LocalSoundManager
 import com.wordwheel.game.audio.Sfx
 import com.wordwheel.game.theme.GameColors
@@ -95,6 +99,8 @@ fun GameScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(
+                // Desert-toned gradient visible behind the image (shows at the
+                // edges on wide aspect ratios where Crop letterboxes).
                 Brush.verticalGradient(
                     colors = listOf(GameColors.BgTop, GameColors.BgBottom)
                 )
@@ -104,6 +110,29 @@ fun GameScreen() {
         val h = maxHeight
         val landscape = w > h
         val spec = specFor(w, h, landscape)
+
+        // HOPEWELL WHELD WORD background. ContentScale.Crop keeps the
+        // pyramid/desert artwork full-bleed; the semi-transparent overlay
+        // keeps the white text legible over the bright sky.
+        Image(
+            painter = painterResource(R.drawable.game_background),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0x66000014),
+                            Color(0x4D000028),
+                            Color(0x80000032),
+                        )
+                    )
+                ),
+        )
 
         if (landscape) {
             LandscapeContent(
