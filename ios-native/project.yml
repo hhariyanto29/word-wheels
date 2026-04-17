@@ -8,10 +8,6 @@ options:
     iOS: "16.0"
   developmentLanguage: en
   createIntermediateGroups: true
-  xcodeVersion: "15.4"
-  # objectVersion 56 maps to Xcode 15.x — newer XcodeGen releases default to
-  # objectVersion 77 which only Xcode 16+ can open.
-  objectVersion: 56
 settings:
   base:
     SWIFT_VERSION: "5.9"
