@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK & AAB
 
 on:
   push:
@@ -17,14 +17,15 @@ on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'Which APK variant to build'
+        description: 'Which variant to build'
         required: true
-        default: 'both'
+        default: 'all'
         type: choice
         options:
           - debug
           - release
-          - both
+          - bundle
+          - all
 
 jobs:
   build-apk:
@@ -82,16 +83,24 @@ jobs:
         run: gradle wrapper --gradle-version 8.7
 
       - name: Build debug APK
-        if: github.event_name != 'workflow_dispatch' || inputs.build_type == 'debug' || inputs.build_type == 'both'
+        if: github.event_name != 'workflow_dispatch' || inputs.build_type == 'debug' || inputs.build_type == 'all'
         working-directory: android-native
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Build release APK
-        if: github.event_name != 'workflow_dispatch' || inputs.build_type == 'release' || inputs.build_type == 'both'
+        if: github.event_name != 'workflow_dispatch' || inputs.build_type == 'release' || inputs.build_type == 'all'
         working-directory: android-native
         run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      # AAB (Android App Bundle) — the format Google Play requires for
+      # upload. It lets Play generate per-device APKs, shrinking the
+      # download users actually see.
+      - name: Build release AAB (bundle)
+        if: github.event_name != 'workflow_dispatch' || inputs.build_type == 'bundle' || inputs.build_type == 'all'
+        working-directory: android-native
+        run: ./gradlew bundleRelease --no-daemon --stacktrace
 
       - name: Verify APKs are signed
         if: always()
@@ -115,19 +124,22 @@ jobs:
             fi
           done
 
-      - name: Report APK sizes
+      - name: Report build sizes
         if: always()
         working-directory: android-native
         run: |
-          echo "## APK Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "## Android Build Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Variant | Size | Path |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|------|------|" >> $GITHUB_STEP_SUMMARY
-          for apk in app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk; do
-            if [ -f "$apk" ]; then
-              size=$(du -h "$apk" | cut -f1)
-              echo "| $(basename $(dirname $apk)) | $size | $apk |" >> $GITHUB_STEP_SUMMARY
-              echo "$(basename $apk): $size"
+          for f in \
+              app/build/outputs/apk/debug/*.apk \
+              app/build/outputs/apk/release/*.apk \
+              app/build/outputs/bundle/release/*.aab; do
+            if [ -f "$f" ]; then
+              size=$(du -h "$f" | cut -f1)
+              echo "| $(basename $(dirname $f)) | $size | $f |" >> $GITHUB_STEP_SUMMARY
+              echo "$(basename $f): $size"
             fi
           done
 
@@ -145,6 +157,15 @@ jobs:
         with:
           name: word-wheel-release-apk
           path: android-native/app/build/outputs/apk/release/*.apk
+          retention-days: 30
+
+      # Upload AAB — this is the file you drag into Play Console.
+      - name: Upload release AAB
+        if: always() && hashFiles('android-native/app/build/outputs/bundle/release/*.aab') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: word-wheel-release-aab
+          path: android-native/app/build/outputs/bundle/release/*.aab
           retention-days: 30
 
       - name: Upload build reports on failure

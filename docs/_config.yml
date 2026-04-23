@@ -1,0 +1,8 @@
+# Minimal Jekyll config for GitHub Pages.
+# Enable Pages: repo Settings → Pages → Source = "Deploy from a branch" → main /docs.
+# After enabling, the privacy policy will live at:
+#   https://hhariyanto29.github.io/word-wheels/privacy-policy/
+
+title: Word Wheel
+description: A pocket-size word puzzle game
+theme: minima
