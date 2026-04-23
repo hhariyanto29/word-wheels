@@ -5,20 +5,36 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
+import com.wordwheel.game.storage.GameSnapshot
 
 /**
  * Game state for a single level. Uses Compose state holders so UI reacts
  * automatically when state changes.
+ *
+ * Every state-mutating method calls [persist] at the end so progress
+ * survives an app kill/restart. The [persist] callback is supplied by the
+ * caller — typically a `GameStorage.save(snapshot())` closure from
+ * `GameScreen`.
  */
-class GameState(levelNum: Int, initialCoins: Int) {
+class GameState(
+    levelNum: Int,
+    initialCoins: Int,
+    initialHints: Int = 5,
+    initialWordsTowardHint: Int = 0,
+    private val persist: () -> Unit = {},
+) {
     var level: Level = Level.get(levelNum)
         private set
     var levelNum: Int = levelNum
         private set
 
-    val usedCells: Set<Pair<Int, Int>> = level.usedCells()
-    val answers: Set<String> = level.answersSet()
-    val bonusWords: Set<String> = level.bonusWords().toSet()
+    // Derived structural data — recomputed whenever `level` changes.
+    var usedCells: Set<Pair<Int, Int>> = level.usedCells()
+        private set
+    var answers: Set<String> = level.answersSet()
+        private set
+    var bonusWords: Set<String> = level.bonusWords().toSet()
+        private set
 
     val found = mutableStateListOf<String>()
     val bonusFound = mutableStateListOf<String>()
@@ -29,14 +45,15 @@ class GameState(levelNum: Int, initialCoins: Int) {
     val selection = mutableStateListOf<Int>()
 
     var coins by mutableStateOf(initialCoins)
-    var hintsLeft by mutableStateOf(5)
-    var wordsTowardHint by mutableStateOf(0)
+    var hintsLeft by mutableStateOf(initialHints)
+    var wordsTowardHint by mutableStateOf(initialWordsTowardHint)
 
     fun currentWord(): String =
         selection.mapNotNull { idx -> tiles.getOrNull(idx) }.joinToString("")
 
     fun clearSelection() {
         selection.clear()
+        // No persist — selection is transient within a turn.
     }
 
     fun backspace() {
@@ -46,6 +63,7 @@ class GameState(levelNum: Int, initialCoins: Int) {
     fun shuffleTiles() {
         clearSelection()
         tiles = tiles.shuffled()
+        persist()
     }
 
     fun isComplete(): Boolean = found.size == answers.size
@@ -77,6 +95,7 @@ class GameState(levelNum: Int, initialCoins: Int) {
                 coins += 2
                 val hintMsg = awardProgress()
                 clearSelection()
+                persist()
                 "Found: $guess (+2 pts)$hintMsg"
             } else {
                 clearSelection()
@@ -90,6 +109,7 @@ class GameState(levelNum: Int, initialCoins: Int) {
                 coins += 2
                 val hintMsg = awardProgress()
                 clearSelection()
+                persist()
                 "Bonus: $guess (+2 pts)$hintMsg"
             } else {
                 clearSelection()
@@ -121,6 +141,69 @@ class GameState(levelNum: Int, initialCoins: Int) {
         val ch = level.solutionLetterAt(r, c) ?: return "Hint failed."
         revealed[r to c] = ch
         hintsLeft -= 1
+        persist()
         return "Revealed a letter!"
+    }
+
+    /**
+     * Switch to a new level. Tile order and progress reset; coins/hints
+     * carry over (supplied by the caller).
+     */
+    fun goToLevel(newLevel: Int) {
+        val lvl = Level.get(newLevel)
+        level = lvl
+        levelNum = newLevel
+        usedCells = lvl.usedCells()
+        answers = lvl.answersSet()
+        bonusWords = lvl.bonusWords().toSet()
+        tiles = lvl.letters.toList()
+        found.clear()
+        bonusFound.clear()
+        revealed.clear()
+        selection.clear()
+        persist()
+    }
+
+    /** Snapshot of everything that should survive an app restart. */
+    fun snapshot(): GameSnapshot = GameSnapshot(
+        levelNum = levelNum,
+        coins = coins,
+        hintsLeft = hintsLeft,
+        wordsTowardHint = wordsTowardHint,
+        tiles = tiles,
+        found = found.toList(),
+        bonusFound = bonusFound.toList(),
+        revealed = revealed.toMap(),
+    )
+
+    /**
+     * Rehydrate from a previously-saved snapshot. Defensive — if the saved
+     * tile multiset doesn't match the current level's letters (e.g. level
+     * data was edited in an update), fall back to the level's original
+     * order. Likewise, only restore `found` / `bonusFound` words that are
+     * still valid for this level.
+     */
+    fun restore(s: GameSnapshot) {
+        goToLevel(s.levelNum)  // realigns level-derived fields
+
+        val savedMultiset = s.tiles.sorted()
+        val levelMultiset = level.letters.sorted()
+        tiles = if (savedMultiset == levelMultiset) s.tiles else level.letters.toList()
+
+        found.clear()
+        found.addAll(s.found.filter { it in answers })
+
+        bonusFound.clear()
+        bonusFound.addAll(s.bonusFound.filter { it in bonusWords })
+
+        revealed.clear()
+        for ((pos, ch) in s.revealed) {
+            if (pos in usedCells) revealed[pos] = ch
+        }
+
+        coins = s.coins
+        hintsLeft = s.hintsLeft
+        wordsTowardHint = s.wordsTowardHint
+        // No persist() here — restore is reading existing saved data.
     }
 }
