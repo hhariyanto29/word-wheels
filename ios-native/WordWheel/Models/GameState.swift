@@ -3,6 +3,11 @@ import Foundation
 /// Single-level game state. An `ObservableObject` so SwiftUI views update
 /// automatically when `@Published` properties change — analogous to Compose's
 /// `mutableStateOf` on the Kotlin side.
+///
+/// Every state-mutating method calls `persist()` at the end so progress
+/// survives an app kill/restart. The `persist` callback is supplied at
+/// construction — typically a `GameStorage.save(snapshot())` closure
+/// wired up by `GameScreen`.
 final class GameState: ObservableObject {
     @Published private(set) var level: Level
     @Published private(set) var levelNum: Int
@@ -25,6 +30,10 @@ final class GameState: ObservableObject {
     @Published var coins: Int
     @Published var hintsLeft: Int = 5
     @Published var wordsTowardHint: Int = 0
+
+    /// Callback invoked after each mutating operation. Wired to a
+    /// `GameStorage.save(_:)` closure by `GameScreen`.
+    var persist: () -> Void = {}
 
     init(levelNum: Int, initialCoins: Int) {
         let lvl = Level.get(levelNum)
@@ -49,6 +58,7 @@ final class GameState: ObservableObject {
     func shuffleTiles() {
         clearSelection()
         tiles.shuffle()
+        persist()
     }
 
     var isComplete: Bool { found.count == answers.count }
@@ -81,6 +91,7 @@ final class GameState: ObservableObject {
                 coins += 2
                 let hintMsg = awardProgress()
                 clearSelection()
+                persist()
                 return "Found: \(guess) (+2 pts)\(hintMsg)"
             } else {
                 clearSelection()
@@ -94,6 +105,7 @@ final class GameState: ObservableObject {
                 coins += 2
                 let hintMsg = awardProgress()
                 clearSelection()
+                persist()
                 return "Bonus: \(guess) (+2 pts)\(hintMsg)"
             } else {
                 clearSelection()
@@ -130,6 +142,7 @@ final class GameState: ObservableObject {
         self.coins = carriedCoins
         self.hintsLeft = carriedHints
         self.wordsTowardHint = carriedWordsTowardHint
+        persist()
     }
 
     func hintRevealRandomLetter() -> String {
@@ -143,6 +156,65 @@ final class GameState: ObservableObject {
         else { return candidates.isEmpty ? "No letters left to reveal." : "Hint failed." }
         revealed[pick] = ch
         hintsLeft -= 1
+        persist()
         return "Revealed a letter!"
+    }
+
+    // MARK: - Snapshot / restore
+
+    /// Snapshot of everything that should survive an app restart.
+    func snapshot() -> GameSnapshot {
+        let reveal: [GameSnapshot.RevealedCell] = revealed.map { (cell, ch) in
+            GameSnapshot.RevealedCell(row: cell.row, col: cell.col, ch: String(ch))
+        }
+        return GameSnapshot(
+            levelNum: levelNum,
+            coins: coins,
+            hintsLeft: hintsLeft,
+            wordsTowardHint: wordsTowardHint,
+            tiles: String(tiles),
+            found: found,
+            bonusFound: bonusFound,
+            revealed: reveal,
+        )
+    }
+
+    /// Rehydrate from a previously-saved snapshot. Defensive — if the saved
+    /// tile multiset doesn't match the current level's letters (e.g. level
+    /// data was edited in an update), fall back to the level's original
+    /// order. Likewise, only restore `found` / `bonusFound` words that are
+    /// still valid for this level.
+    func restore(_ s: GameSnapshot) {
+        let newLevel = max(1, min(s.levelNum, Level.totalLevels))
+        let lvl = Level.get(newLevel)
+        self.level = lvl
+        self.levelNum = newLevel
+
+        let savedTiles = Array(s.tiles)
+        self.tiles = savedTiles.sorted() == lvl.letters.sorted()
+            ? savedTiles
+            : lvl.letters
+
+        let answersSet = lvl.answersSet
+        self.found = s.found.filter { answersSet.contains($0) }
+
+        let bonusSet = Set(lvl.bonusWords)
+        self.bonusFound = s.bonusFound.filter { bonusSet.contains($0) }
+
+        let used = lvl.usedCells
+        var rev: [Cell: Character] = [:]
+        for r in s.revealed {
+            let cell = Cell(row: r.row, col: r.col)
+            if used.contains(cell), let c = r.ch.first {
+                rev[cell] = c
+            }
+        }
+        self.revealed = rev
+
+        self.coins = max(0, s.coins)
+        self.hintsLeft = max(0, s.hintsLeft)
+        self.wordsTowardHint = max(0, min(s.wordsTowardHint, 9))
+        self.selection = []
+        // No persist() — restore() reads existing saved data.
     }
 }

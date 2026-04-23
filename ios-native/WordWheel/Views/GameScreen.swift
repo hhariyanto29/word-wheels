@@ -6,14 +6,38 @@ import SwiftUI
 struct GameScreen: View {
     @EnvironmentObject private var sound: SoundManager
 
-    @State private var currentLevel: Int = 1
-    @State private var carriedCoins: Int = 200
-    @State private var carriedHints: Int = 5
-    @State private var carriedWordsTowardHint: Int = 0
+    /// Owned for the lifetime of the screen. Plain class, not observable —
+    /// the only reader is `GameState.persist`.
+    private let storage: GameStorage
 
-    @StateObject private var game: GameState = GameState(levelNum: 1, initialCoins: 200)
+    @StateObject private var game: GameState
 
     @State private var status: String = ""
+
+    init(storage: GameStorage = GameStorage()) {
+        self.storage = storage
+
+        let saved = storage.load()
+        let initial = GameState(
+            levelNum: saved?.levelNum ?? 1,
+            initialCoins: saved?.coins ?? 200,
+        )
+        if let saved {
+            initial.restore(saved)
+        } else {
+            initial.hintsLeft = 5
+            initial.wordsTowardHint = 0
+        }
+        // Wire the persist callback — captures `storage` by value, and
+        // the closure references `initial` weakly-ish via a trailing
+        // closure that re-fetches the snapshot from the GameState itself.
+        let capturedStorage = storage
+        initial.persist = { [weak initial] in
+            guard let s = initial else { return }
+            capturedStorage.save(s.snapshot())
+        }
+        _game = StateObject(wrappedValue: initial)
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -48,7 +72,7 @@ struct GameScreen: View {
 
                 if game.isComplete {
                     CompletionDialog(
-                        isLastLevel: currentLevel >= Level.totalLevels,
+                        isLastLevel: game.levelNum >= Level.totalLevels,
                         onNext: advanceLevel,
                     )
                 }
@@ -65,7 +89,7 @@ struct GameScreen: View {
     private func portraitContent(spec: Spec) -> some View {
         VStack(spacing: 0) {
             TopBar(coins: game.coins, found: game.found.count,
-                   total: game.answers.count, level: currentLevel)
+                   total: game.answers.count, level: game.levelNum)
             Spacer().frame(height: spec.gapAfterTopBar)
 
             CrosswordGrid(level: game.level, visible: game.visibleLetters(),
@@ -109,7 +133,7 @@ struct GameScreen: View {
     private func landscapeContent(spec: Spec) -> some View {
         VStack(spacing: 0) {
             TopBar(coins: game.coins, found: game.found.count,
-                   total: game.answers.count, level: currentLevel)
+                   total: game.answers.count, level: game.levelNum)
             Spacer().frame(height: spec.gapAfterTopBar)
 
             HStack(alignment: .center, spacing: 16) {
@@ -215,18 +239,14 @@ struct GameScreen: View {
     }
 
     private func advanceLevel() {
-        // Carry coins + hint progress into the next level (mirrors Android behaviour)
+        // Carry coins + hint progress into the next level (mirrors Android behaviour).
         game.coins += 10
-        carriedCoins = game.coins
-        carriedHints = game.hintsLeft
-        carriedWordsTowardHint = game.wordsTowardHint
-        let next = currentLevel >= Level.totalLevels ? 1 : currentLevel + 1
-        currentLevel = next
+        let next = game.levelNum >= Level.totalLevels ? 1 : game.levelNum + 1
         game.resetTo(
             level: next,
-            carriedCoins: carriedCoins,
-            carriedHints: carriedHints,
-            carriedWordsTowardHint: carriedWordsTowardHint,
+            carriedCoins: game.coins,
+            carriedHints: game.hintsLeft,
+            carriedWordsTowardHint: game.wordsTowardHint,
         )
         status = ""
     }

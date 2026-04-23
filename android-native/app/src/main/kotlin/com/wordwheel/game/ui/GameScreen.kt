@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wordwheel.game.GameState
 import com.wordwheel.game.Level
+import com.wordwheel.game.LocalGameStorage
 import com.wordwheel.game.R
 import com.wordwheel.game.audio.LocalSoundManager
 import com.wordwheel.game.audio.Sfx
@@ -56,23 +57,34 @@ private fun specFor(width: Dp, height: Dp, landscape: Boolean): Spec {
 
 @Composable
 fun GameScreen() {
-    var currentLevel by rememberSaveable { mutableIntStateOf(1) }
-    var gameKey by rememberSaveable { mutableIntStateOf(0) }
-    var carriedCoins by rememberSaveable { mutableIntStateOf(200) }
-    var carriedHints by rememberSaveable { mutableIntStateOf(5) }
-    var carriedWordsTowardHint by rememberSaveable { mutableIntStateOf(0) }
+    val sound = LocalSoundManager.current
+    val storage = LocalGameStorage.current
 
-    val game = remember(currentLevel, gameKey) {
-        GameState(currentLevel, carriedCoins).apply {
-            hintsLeft = carriedHints
-            wordsTowardHint = carriedWordsTowardHint
-        }
+    // Load the saved snapshot (if any) and build a single long-lived
+    // GameState. Level transitions mutate it in place via goToLevel()
+    // rather than re-creating the object, so the persist callback keeps
+    // its closure valid for the app's lifetime.
+    //
+    // The `holder` array is a forward-reference so the persist lambda
+    // can call back into the GameState we're still constructing.
+    val game = remember {
+        val holder = arrayOfNulls<GameState>(1)
+        val saved = storage?.load()
+        val state = GameState(
+            levelNum = saved?.levelNum ?: 1,
+            initialCoins = saved?.coins ?: 200,
+            initialHints = saved?.hintsLeft ?: 5,
+            initialWordsTowardHint = saved?.wordsTowardHint ?: 0,
+            persist = { holder[0]?.let { s -> storage?.save(s.snapshot()) } },
+        )
+        holder[0] = state
+        if (saved != null) state.restore(saved)
+        state
     }
 
     var status by remember { mutableStateOf("") }
-    val sound = LocalSoundManager.current
 
-    LaunchedEffect(currentLevel, gameKey, game.isComplete()) {
+    LaunchedEffect(game.levelNum, game.isComplete()) {
         if (game.isComplete()) sound?.play(Sfx.Complete)
     }
 
@@ -87,11 +99,7 @@ fun GameScreen() {
     }
 
     val goToLevel: (Int) -> Unit = { newLevel ->
-        carriedCoins = game.coins
-        carriedHints = game.hintsLeft
-        carriedWordsTowardHint = game.wordsTowardHint
-        currentLevel = newLevel
-        gameKey += 1
+        game.goToLevel(newLevel)
         status = ""
     }
 
@@ -137,7 +145,7 @@ fun GameScreen() {
         if (landscape) {
             LandscapeContent(
                 game = game,
-                level = currentLevel,
+                level = game.levelNum,
                 status = status,
                 spec = spec,
                 onSubmitWheel = {
@@ -157,7 +165,7 @@ fun GameScreen() {
         } else {
             PortraitContent(
                 game = game,
-                level = currentLevel,
+                level = game.levelNum,
                 status = status,
                 spec = spec,
                 onSubmitWheel = {
@@ -178,10 +186,10 @@ fun GameScreen() {
 
         if (game.isComplete()) {
             CompletionDialog(
-                isLastLevel = currentLevel >= Level.TOTAL_LEVELS,
+                isLastLevel = game.levelNum >= Level.TOTAL_LEVELS,
                 onNext = {
                     game.coins += 10
-                    val next = if (currentLevel >= Level.TOTAL_LEVELS) 1 else currentLevel + 1
+                    val next = if (game.levelNum >= Level.TOTAL_LEVELS) 1 else game.levelNum + 1
                     goToLevel(next)
                 },
             )
