@@ -98,31 +98,54 @@ HAND_CRAFTED_BONUS: dict[int, list[str]] = {
     10: ["STARE", "RETAIN", "SATIRE", "INSERT", "STAIN", "RAIN", "RISE", "TIRE"],
 }
 
+# Words to skip even if they're in the common wordlist — proper nouns,
+# foreign-language tokens, and obscure abbreviations that the dictionary
+# lists as words but no English-speaking player would solve.
+PROPER_NOUNS_DENYLIST: set[str] = {
+    # Common English first names
+    "ALAN", "ERIC", "PETER", "BRAD", "RUTH", "RICK", "PAUL", "MARK", "JOHN",
+    "ANN", "AMY", "SETH", "NATE", "MARY", "JANE", "ROSS", "MIKE", "TOM",
+    "JIM", "JOE", "TED", "DAN", "RON", "BOB", "SAM", "MEG", "MOE", "COLIN",
+    "COLE",
+    # Place names
+    "TROY", "BALI", "NOVA", "RIO", "ASIA", "OHIO", "PARIS", "INDIA", "JUNE",
+    "EVEREST",
+    # Foreign words / cultural references
+    "MING", "SRI", "SEN", "SIE", "YEN", "MEM", "KAT", "RAS",
+    # Abbreviations / initialisms
+    "ATIS", "IST", "NIN", "GED", "GEN", "ONS", "TRI", "ING", "ENS",
+    "ELS", "IDE", "AES", "SAO", "PAC", "REG", "REV", "AVE", "GIED",
+    # Other obscurities
+    "ARED", "ROED", "NOWED", "FLUED", "ATES", "HURTED", "CARK", "GARCE",
+    "LAKING", "WALING", "LAWING", "GARE", "AGRE", "GIE", "MORG", "MONG",
+    "INRO", "NIOG", "MORIN", "NORI", "JAW", "GIE",
+}
+
 # Hand-picked root words for levels 11-100. Common English words, ordered
 # by length so difficulty grows. Each must contain enough vowels to make
 # sub-word generation viable. Curated to feel "puzzle-worthy".
 ROOTS_11_100: list[str] = [
     # Length 5 (levels 11-30) — 20 words
-    "GRACE", "DREAM", "STORM", "FLAME", "LIGHT", "STONE", "WATER", "OCEAN",
-    "PEACE", "SPACE", "SHINE", "PLATE", "TRACK", "SCALE", "PRINT", "CRAFT",
+    "GRACE", "DREAM", "BREAD", "FLAME", "SOLID", "STONE", "WATER", "OCEAN",
+    "PEACE", "SPACE", "HEART", "PLATE", "TRACK", "SCALE", "PRINT", "CRAFT",
     "SMILE", "FROST", "BRAVE", "QUIET",
     # Length 6 (levels 31-55) — 25 words
     "PLATES", "STREAM", "BRIGHT", "FOREST", "GARDEN", "CASTLE", "ISLAND",
     "BRIDGE", "DESERT", "PLANET", "WINTER", "SPRING", "SUMMER", "MOTHER",
     "FATHER", "TEACHER", "DOCTOR", "WONDER", "MARKET", "BUTTER",
-    "COTTAGE", "HUNTER", "MASTER", "POSTER", "TRAVEL",
+    "COTTAGE", "TENDER", "MASTER", "POSTER", "TRAVEL",
     # Length 7 (levels 56-80) — 25 words
     "MORNING", "EVENING", "PICTURE", "WEATHER", "JOURNEY", "MEETING",
-    "READING", "WALKING", "EVEREST", "FREEDOM", "STATION", "VICTORY",
+    "READING", "WALKING", "FOREVER", "FREEDOM", "STATION", "VICTORY",
     "MYSTERY", "HISTORY", "FACTORY", "GALLERY", "STUDENT", "TEACHER",
     "MANAGER", "ARTISTS", "PARTNER", "MONSTER", "PALACES", "TROPHY",
     "STORIES",
     # Length 8 (levels 81-95) — 15 words
-    "MOUNTAIN", "VACATION", "BIRTHDAY", "ATTITUDE", "BRILLIANT",
-    "STRENGTH", "TREASURE", "PRESENTS", "AIRPLANE", "DESCRIBE",
-    "INTERNET", "EVERYDAY", "DAUGHTER", "SOUTHERN", "AVAILABLE",
+    "MOUNTAIN", "OBSERVER", "BIRTHDAY", "ATTITUDE", "PARENTAL",
+    "STRENGTH", "TREASURE", "STARTERS", "ELECTION", "MAGAZINE",
+    "INTERNET", "EVERYDAY", "DAUGHTER", "SOUTHERN", "DESIGNER",
     # Length 9 (levels 96-100) — 5 words
-    "ADVENTURE", "BIRTHRATE", "BRIGHTEST", "EVERGREEN", "WONDERFUL",
+    "ADVENTURE", "STATEMENT", "BRIGHTEST", "EVERGREEN", "WONDERFUL",
 ]
 # Sanity: must be exactly 90 (levels 11-100)
 assert len(ROOTS_11_100) == 90, f"need 90 root words, got {len(ROOTS_11_100)}"
@@ -170,6 +193,7 @@ def load_wordlist() -> set[str]:
     # Now intersect with BSD dict so we only keep words that BOTH (a) are
     # actually in English and (b) pass the common-vocabulary bar.
     bsd: set[str] = set()
+    bsd_lower_only: set[str] = set()  # entries that ONLY appear lowercase
     with open(WORDLIST_PATH) as f:
         for raw in f:
             w = raw.strip()
@@ -177,11 +201,16 @@ def load_wordlist() -> set[str]:
                 continue
             if not (3 <= len(w) <= 10):
                 continue
+            upper = w.upper()
             if w[0].isupper() and not w.isupper():
+                # Capital-first entry → likely proper noun. Track but don't add.
                 continue
-            bsd.add(w.upper())
+            bsd.add(upper)
+            if w.islower():
+                bsd_lower_only.add(upper)
 
-    return bsd & common
+    # Final wordlist: in BSD (lowercase) AND in common-10k AND not on denylist.
+    return (bsd & common) - PROPER_NOUNS_DENYLIST
 
 
 # ─── Sub-word search ────────────────────────────────────────────────────
