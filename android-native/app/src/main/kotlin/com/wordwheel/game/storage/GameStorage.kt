@@ -26,6 +26,16 @@ data class GameSnapshot(
     val found: List<String>,
     val bonusFound: List<String>,
     val revealed: Map<Pair<Int, Int>, Char>,
+    // ── Meta-progression (schema v2) ────────────────────────────────
+    /** Local epoch day (LocalDate.toEpochDay) the player last opened the
+     *  app while we ticked the streak. Zero when never recorded. */
+    val lastPlayedEpochDay: Long = 0L,
+    /** Consecutive-days-played counter; bumped when last play was
+     *  exactly yesterday, reset to 1 on bigger gaps. */
+    val currentStreak: Int = 0,
+    /** Local epoch day the player last claimed the daily spin. Used to
+     *  decide whether the spin button is enabled. */
+    val lastSpinEpochDay: Long = 0L,
 ) {
     fun toJson(): String {
         val obj = JSONObject()
@@ -46,11 +56,14 @@ data class GameSnapshot(
             rev.put(cell)
         }
         obj.put("revealed", rev)
+        obj.put("lastPlayedEpochDay", lastPlayedEpochDay)
+        obj.put("currentStreak", currentStreak)
+        obj.put("lastSpinEpochDay", lastSpinEpochDay)
         return obj.toString()
     }
 
     companion object {
-        const val SCHEMA_VERSION = 1
+        const val SCHEMA_VERSION = 2
 
         fun fromJson(json: String?): GameSnapshot? {
             if (json.isNullOrEmpty()) return null
@@ -90,6 +103,10 @@ data class GameSnapshot(
                     found = found,
                     bonusFound = bonusFound,
                     revealed = revealed,
+                    // optInt → 0 default keeps v1 saves valid on upgrade
+                    lastPlayedEpochDay = obj.optLong("lastPlayedEpochDay", 0L),
+                    currentStreak = obj.optInt("currentStreak", 0).coerceAtLeast(0),
+                    lastSpinEpochDay = obj.optLong("lastSpinEpochDay", 0L),
                 )
             } catch (t: Throwable) {
                 // Corrupt save — wipe it and start fresh rather than crash.
