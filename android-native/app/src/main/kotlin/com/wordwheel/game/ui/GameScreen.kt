@@ -481,8 +481,6 @@ private fun LandscapeContent(
                     hintsLeft = game.hintsLeft,
                     wordsTowardHint = game.wordsTowardHint,
                     onHint = onHint,
-                    onSubmit = onSubmitButton,
-                    onBackspace = onBackspace,
                 )
                 if (game.bonusFound.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))

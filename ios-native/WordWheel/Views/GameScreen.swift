@@ -274,8 +274,9 @@ struct GameScreen: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     Spacer().frame(height: spec.gapBeforeButtons)
-                    BottomButtons(hintsLeft: game.hintsLeft, wordsTowardHint: game.wordsTowardHint,
-                                  onHint: handleHint, onSubmit: handleSubmit, onBackspace: handleBackspace)
+                    BottomButtons(hintsLeft: game.hintsLeft,
+                                  wordsTowardHint: game.wordsTowardHint,
+                                  onHint: handleHint)
                     if !game.bonusFound.isEmpty {
                         Text("Bonus: \(game.bonusFound.joined(separator: ", "))")
                             .font(.system(size: 12))
