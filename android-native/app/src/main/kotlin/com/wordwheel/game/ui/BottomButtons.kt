@@ -14,54 +14,29 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wordwheel.game.theme.GameColors
 
+/**
+ * Bottom action bar.
+ *
+ * Drag-on-the-wheel is the primary submit gesture — releasing the drag
+ * commits the selected word automatically (see [LetterWheel]). That
+ * makes both Submit and Backspace buttons redundant. Only the Hint
+ * button lives here now, centred and large.
+ */
 @Composable
 fun BottomButtons(
     hintsLeft: Int,
     wordsTowardHint: Int,
     onHint: () -> Unit,
-    onSubmit: () -> Unit,
-    onBackspace: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.Center,
     ) {
         HintButton(hintsLeft, wordsTowardHint, onHint)
-
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(GameColors.SubmitBg)
-                .clickable { onSubmit() }
-                .padding(horizontal = 24.dp, vertical = 10.dp),
-        ) {
-            Text(
-                text = "Submit",
-                color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .size(54.dp)
-                .clip(CircleShape)
-                .background(GameColors.HintBtnBg)
-                .clickable { onBackspace() },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "\u232B",
-                color = Color.White,
-                fontSize = 22.sp,
-            )
-        }
     }
 }
 
@@ -70,41 +45,45 @@ private fun HintButton(hintsLeft: Int, wordsTowardHint: Int, onHint: () -> Unit)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
-                .size(54.dp)
+                .size(64.dp)
                 .clip(CircleShape)
-                .background(GameColors.HintBtnBg)
-                .clickable { onHint() },
+                .background(
+                    if (hintsLeft > 0) Color(0xFFFFB400)
+                    else Color(0xB4282828)
+                )
+                .clickable(onClick = onHint),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = "\uD83D\uDCA1",
-                fontSize = 22.sp,
+                fontSize = 28.sp,
             )
-            // Hint count badge
+            // Hint count badge in the corner
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(x = 4.dp, y = (-4).dp)
-                    .size(18.dp)
+                    .offset(x = 6.dp, y = (-4).dp)
+                    .size(22.dp)
                     .clip(CircleShape)
                     .background(
-                        if (hintsLeft > 0) Color(0xFF32B450) else Color(0xFF787878)
+                        if (hintsLeft > 0) Color(0xFF32B450)
+                        else Color(0xFF787878)
                     ),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = hintsLeft.toString(),
                     color = Color.White,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
         }
-        // Progress bar
+        // Progress toward the next free hint (every 10 words found).
         Box(
             modifier = Modifier
-                .padding(top = 4.dp)
-                .width(54.dp)
+                .padding(top = 6.dp)
+                .width(80.dp)
                 .height(6.dp)
                 .clip(RoundedCornerShape(3.dp))
                 .background(Color(0xFF28283C)),

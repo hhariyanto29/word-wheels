@@ -27,6 +27,17 @@ enum class Sfx(val resId: Int) {
 class SoundManager(context: Context) {
     private val pool: SoundPool
     private val ids = HashMap<Sfx, Int>(Sfx.entries.size)
+    private val prefs = context.applicationContext
+        .getSharedPreferences("word_wheel_audio", Context.MODE_PRIVATE)
+
+    /** User-level toggle. When false, [play] is a no-op. Persisted across
+     *  launches in a separate SharedPreferences so it isn't tied to the
+     *  game-state schema. */
+    var sfxEnabled: Boolean = prefs.getBoolean(KEY_SFX_ENABLED, true)
+        set(value) {
+            field = value
+            prefs.edit().putBoolean(KEY_SFX_ENABLED, value).apply()
+        }
 
     init {
         val attrs = AudioAttributes.Builder()
@@ -43,6 +54,7 @@ class SoundManager(context: Context) {
     }
 
     fun play(sfx: Sfx, volume: Float = 1.0f) {
+        if (!sfxEnabled) return
         val id = ids[sfx] ?: return
         pool.play(id, volume, volume, 1, 0, 1.0f)
     }
@@ -50,6 +62,10 @@ class SoundManager(context: Context) {
     fun release() {
         pool.release()
         ids.clear()
+    }
+
+    private companion object {
+        const val KEY_SFX_ENABLED = "sfx_enabled"
     }
 }
 

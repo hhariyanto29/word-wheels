@@ -153,22 +153,31 @@ assert len(ROOTS_11_100) == 90, f"need 90 root words, got {len(ROOTS_11_100)}"
 
 # ─── Wordlist ──────────────────────────────────────────────────────────
 
-def load_wordlist() -> set[str]:
-    """
-    Build the puzzle wordlist by intersecting the linguistic BSD dictionary
-    with a list of common English words. The intersection drops obscure
-    terms while keeping plurals/-ed/-ing variants the common list misses.
-    """
-    if not os.path.exists(WORDLIST_PATH):
-        sys.exit(f"Wordlist not found at {WORDLIST_PATH}")
+def _load_bsd() -> set[str]:
+    """All-lowercase, alphabetic, length 3-10 entries from /usr/share/dict/words."""
+    bsd: set[str] = set()
+    with open(WORDLIST_PATH) as f:
+        for raw in f:
+            w = raw.strip()
+            if not w or not w.isalpha() or not w.isascii():
+                continue
+            if not (3 <= len(w) <= 10):
+                continue
+            # Skip Capital-first entries (proper nouns). Keep ALLCAPS too
+            # (acronyms — filtered later by denylist).
+            if w[0].isupper() and not w.isupper():
+                continue
+            bsd.add(w.upper())
+    return bsd
+
+
+def _load_common_with_morphology() -> set[str]:
+    """google-10000-english + simple plural / -ed / -ing variants."""
     if not os.path.exists(COMMON_WORDS_PATH):
         sys.exit(f"Common-words list not found at {COMMON_WORDS_PATH}\n"
                  "Run: curl -sS -L https://raw.githubusercontent.com/first20hours/"
                  "google-10000-english/master/google-10000-english-no-swears.txt "
                  f"-o {COMMON_WORDS_PATH}")
-
-    # All common words, expanded with simple morphological variants so we
-    # don't lose plurals or past-tense forms that BSD considers normal.
     common_raw: set[str] = set()
     with open(COMMON_WORDS_PATH) as f:
         for raw in f:
@@ -189,28 +198,30 @@ def load_wordlist() -> set[str]:
             else:
                 common.add(w + "ED")
                 common.add(w + "ING")
+    return common
 
-    # Now intersect with BSD dict so we only keep words that BOTH (a) are
-    # actually in English and (b) pass the common-vocabulary bar.
-    bsd: set[str] = set()
-    bsd_lower_only: set[str] = set()  # entries that ONLY appear lowercase
-    with open(WORDLIST_PATH) as f:
-        for raw in f:
-            w = raw.strip()
-            if not w or not w.isalpha() or not w.isascii():
-                continue
-            if not (3 <= len(w) <= 10):
-                continue
-            upper = w.upper()
-            if w[0].isupper() and not w.isupper():
-                # Capital-first entry → likely proper noun. Track but don't add.
-                continue
-            bsd.add(upper)
-            if w.islower():
-                bsd_lower_only.add(upper)
 
-    # Final wordlist: in BSD (lowercase) AND in common-10k AND not on denylist.
-    return (bsd & common) - PROPER_NOUNS_DENYLIST
+def load_wordlist() -> tuple[set[str], set[str]]:
+    """
+    Returns (puzzle_words, bonus_words):
+
+    - puzzle_words: strict — used for crossword ANSWERS placed in the
+      grid. BSD ∩ common-10k (with morphology), minus the denylist.
+    - bonus_words: permissive — used to seed the BONUS list shown to
+      the player. BSD itself, minus only the proper-noun denylist.
+      Players rarely "win" by submitting bonus words, so we cast a
+      wider net here so common English words like LEAP, NAPE, NEAP,
+      ETAS, all count.
+    """
+    if not os.path.exists(WORDLIST_PATH):
+        sys.exit(f"Wordlist not found at {WORDLIST_PATH}")
+
+    bsd = _load_bsd()
+    common = _load_common_with_morphology()
+
+    puzzle = (bsd & common) - PROPER_NOUNS_DENYLIST
+    bonus = bsd - PROPER_NOUNS_DENYLIST
+    return puzzle, bonus
 
 
 # ─── Sub-word search ────────────────────────────────────────────────────
@@ -302,15 +313,22 @@ def can_place(pw: PlacedWord, occupied: dict[tuple[int, int], str],
     return True
 
 
-def build_level(root: str, dictionary: set[str], max_words: int,
-                rng: random.Random) -> Optional[dict]:
+def build_level(root: str, puzzle_words: set[str], bonus_dict: set[str],
+                max_words: int, rng: random.Random) -> Optional[dict]:
     """
-    Build one level for the given root word. Returns dict with rows, cols,
-    letters, words[], bonus[]. Returns None if too few crossword words
-    could be placed.
+    Build one level for the given root word.
+
+    [puzzle_words] is the strict common wordlist used to choose crossword
+    answers. [bonus_dict] is the permissive English wordlist used to
+    seed the bonus list — every valid sub-word that isn't already a
+    crossword answer counts as a bonus word the player can earn coins
+    for, even if it's not displayed.
+
+    Returns dict with rows, cols, letters, words[], bonus[]. Returns
+    None if too few crossword words could be placed.
     """
     candidates = sorted(
-        subwords(root, dictionary, min_len=3),
+        subwords(root, puzzle_words, min_len=3),
         key=lambda w: (-len(w), w),
     )
     # Long candidates make better spines; among same length, shuffle.
@@ -410,9 +428,20 @@ def build_level(root: str, dictionary: set[str], max_words: int,
     rows = max_r + 2
     cols = max_c + 1
 
-    # Bonus words: remaining sub-words that didn't make it into the grid,
-    # capped to prevent overwhelming the player.
-    bonus = [w for w in candidates if w not in used_words][:8]
+    # Bonus words: every valid sub-word from the permissive English list
+    # that isn't already a crossword answer.
+    #
+    # We deliberately uncap this — players still see a short hint list in
+    # the UI but the game now ACCEPTS any of these as a valid bonus
+    # submission. Was previously [:8] which made the game reject obviously
+    # valid words like LEAP / NAPE / PEAL on level 7 (PLANETS).
+    bonus_subs = subwords(root, bonus_dict, min_len=3)
+    # Drop the root word itself + any crossword answer + the spine.
+    bonus = sorted(
+        (w for w in bonus_subs
+         if w != root and w not in used_words),
+        key=lambda w: (-len(w), w),
+    )
 
     return dict(
         rows=rows,
@@ -440,28 +469,46 @@ def difficulty_max_words(level_num: int) -> int:
 
 def generate_all() -> list[dict]:
     """Build all 100 level dicts. Hand-crafted 1-10, generated 11-100."""
-    print("Loading wordlist…")
-    dictionary = load_wordlist()
-    print(f"  {len(dictionary):,} words after filtering")
+    print("Loading wordlists…")
+    puzzle_words, bonus_dict = load_wordlist()
+    print(f"  puzzle wordlist (strict): {len(puzzle_words):,}")
+    print(f"  bonus wordlist (permissive): {len(bonus_dict):,}")
 
     levels: list[dict] = []
 
+    # ── Hand-crafted levels 1-10 ────────────────────────────────────
+    # Augment the hand-curated bonus lists with every other valid
+    # sub-word of the wheel letters that the BSD dictionary considers
+    # English. Words show up as bonus rewards when typed during play
+    # — we keep the original curated list at the front (UI hint) and
+    # append the rest so submission still credits them.
     for n in range(1, 11):
         h = HAND_CRAFTED[n]
+        root = h["letters"]
+        crossword_answers = {pw[0] for pw in h["words"]}
+        all_bonus = subwords(root, bonus_dict, min_len=3)
+        curated = HAND_CRAFTED_BONUS[n]
+        merged: list[str] = list(curated)
+        seen = set(curated) | crossword_answers | {root}
+        for w in sorted(all_bonus, key=lambda w: (-len(w), w)):
+            if w not in seen:
+                merged.append(w)
+                seen.add(w)
         levels.append(dict(
             number=n,
             rows=h["rows"],
             cols=h["cols"],
-            letters=h["letters"],
+            letters=root,
             words=h["words"],
-            bonus=HAND_CRAFTED_BONUS[n],
+            bonus=merged,
         ))
 
+    # ── Generated levels 11-100 ─────────────────────────────────────
     rng = random.Random(SEED)
     for i, root in enumerate(ROOTS_11_100):
         n = i + 11
         max_w = difficulty_max_words(n)
-        built = build_level(root, dictionary, max_w, rng)
+        built = build_level(root, puzzle_words, bonus_dict, max_w, rng)
         if built is None:
             sys.exit(f"Failed to build level {n} for root {root}")
         built["number"] = n
