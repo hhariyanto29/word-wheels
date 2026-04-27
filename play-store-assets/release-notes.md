@@ -5,19 +5,28 @@ per language. Keep it short and punchy — this appears on the store page.
 
 ---
 
-## v1.0 (versionCode 4) — Initial release
+## v1.5 (versionCode 6) — 100 levels
 
 ```
-First release! Word Wheel — 10 offline word puzzle levels.
+The big one — 100 levels!
 
-• Drag across letters on the wheel to build words
-• Fill the crossword above with your answers
-• Tap center to shuffle, hint reveals a letter
-• Portrait and landscape, phones and tablets
-• No ads, no tracking, no internet required
+• 90 brand-new puzzles, lengths 4 → 9 letters
+• Smarter difficulty curve from beginner to expert
+• Progress saves automatically — pick up where you left off
+• Same offline play, no ads, no tracking
 ```
 
-Length: ~330 chars ✓
+Length: ~250 chars ✓
+
+---
+
+## v1.4 (versionCode 5) — Persistence
+
+```
+• Game now remembers your level, coins and hints when closed
+• Pick up exactly where you left off
+• Bug fixes
+```
 
 ---
 
