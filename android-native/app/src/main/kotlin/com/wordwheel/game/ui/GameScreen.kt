@@ -93,6 +93,11 @@ fun GameScreen() {
 
     var status by remember { mutableStateOf("") }
     var spinDialogOpen by remember { mutableStateOf(false) }
+    var pendingDifficultyTier by remember { mutableStateOf<com.wordwheel.game.Difficulty?>(null) }
+    var pendingNextLevel by remember { mutableStateOf<Int?>(null) }
+    var settingsOpen by remember { mutableStateOf(false) }
+    // App opens on the home screen; tap "LEVEL X" to enter the puzzle.
+    var atHome by rememberSaveable { mutableStateOf(true) }
 
     LaunchedEffect(game.levelNum, game.isComplete()) {
         if (game.isComplete()) sound?.play(Sfx.Complete)
@@ -111,6 +116,43 @@ fun GameScreen() {
     val goToLevel: (Int) -> Unit = { newLevel ->
         game.goToLevel(newLevel)
         status = ""
+    }
+
+    // Home screen — pre-game landing with the resume button. Tapping
+    // LEVEL X switches `atHome` off and the puzzle takes over.
+    if (atHome) {
+        HomeScreen(
+            levelNum = game.levelNum,
+            coins = game.coins,
+            streak = game.currentStreak,
+            spinAvailable = game.canSpinToday(today),
+            onResume = { atHome = false },
+            onSpinClick = { spinDialogOpen = true },
+            onSettingsClick = { settingsOpen = true },
+        )
+        // Even on the home screen, the spin and settings dialogs may be
+        // open (player tapped from the home buttons).
+        if (spinDialogOpen) {
+            SpinWheelDialog(
+                onSpinResult = { sector ->
+                    game.applySpinReward(
+                        today = today,
+                        coinsAdded = sector.coins,
+                        hintsAdded = sector.hints,
+                    )
+                    if (sector.coins > 0) sound?.play(Sfx.WordFound)
+                    else if (sector.hints > 0) sound?.play(Sfx.Hint)
+                },
+                onDismiss = { spinDialogOpen = false },
+            )
+        }
+        if (settingsOpen) {
+            SettingsDialog(
+                soundManager = sound,
+                onDismiss = { settingsOpen = false },
+            )
+        }
+        return
     }
 
     BoxWithConstraints(
@@ -167,13 +209,8 @@ fun GameScreen() {
                 },
                 onShuffle = { game.shuffleTiles() },
                 onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
-                onSubmitButton = { status = game.trySubmit(); playForStatus(status) },
-                onBackspace = {
-                    if (game.selection.isNotEmpty()) {
-                        sound?.play(Sfx.Backspace); game.backspace()
-                    }
-                },
                 onSpinClick = { spinDialogOpen = true },
+                onSettingsClick = { settingsOpen = true },
             )
         } else {
             PortraitContent(
@@ -190,13 +227,8 @@ fun GameScreen() {
                 },
                 onShuffle = { game.shuffleTiles() },
                 onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
-                onSubmitButton = { status = game.trySubmit(); playForStatus(status) },
-                onBackspace = {
-                    if (game.selection.isNotEmpty()) {
-                        sound?.play(Sfx.Backspace); game.backspace()
-                    }
-                },
                 onSpinClick = { spinDialogOpen = true },
+                onSettingsClick = { settingsOpen = true },
             )
         }
 
@@ -215,14 +247,43 @@ fun GameScreen() {
             )
         }
 
-        if (game.isComplete()) {
+        if (game.isComplete() && pendingDifficultyTier == null) {
             CompletionDialog(
                 isLastLevel = game.levelNum >= Level.TOTAL_LEVELS,
                 onNext = {
+                    val completed = game.levelNum
                     game.coins += 10
-                    val next = if (game.levelNum >= Level.TOTAL_LEVELS) 1 else game.levelNum + 1
-                    goToLevel(next)
+                    val next = if (completed >= Level.TOTAL_LEVELS) 1 else completed + 1
+                    // If this was a tier-boundary level, show the difficulty
+                    // banner first; the player advances after dismissing it.
+                    val tier = com.wordwheel.game.Difficulty.milestoneFor(completed)
+                    if (tier != null) {
+                        pendingDifficultyTier = tier
+                        // Stage the level transition until the banner closes.
+                        pendingNextLevel = next
+                    } else {
+                        goToLevel(next)
+                    }
                 },
+            )
+        }
+
+        pendingDifficultyTier?.let { tier ->
+            DifficultyDialog(
+                tier = tier,
+                onDismiss = {
+                    val next = pendingNextLevel
+                    pendingDifficultyTier = null
+                    pendingNextLevel = null
+                    if (next != null) goToLevel(next)
+                },
+            )
+        }
+
+        if (settingsOpen) {
+            SettingsDialog(
+                soundManager = sound,
+                onDismiss = { settingsOpen = false },
             )
         }
     }
@@ -241,9 +302,8 @@ private fun PortraitContent(
     onSubmitWheel: () -> Unit,
     onShuffle: () -> Unit,
     onHint: () -> Unit,
-    onSubmitButton: () -> Unit,
-    onBackspace: () -> Unit,
     onSpinClick: () -> Unit,
+    onSettingsClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -268,6 +328,8 @@ private fun PortraitContent(
                 Spacer(Modifier.width(8.dp))
                 SpinPill(onClick = onSpinClick)
             }
+            Spacer(Modifier.width(8.dp))
+            SettingsIconButton(onClick = onSettingsClick)
         }
         Spacer(Modifier.height(spec.gapAfterTopBar))
 
@@ -307,8 +369,6 @@ private fun PortraitContent(
             hintsLeft = game.hintsLeft,
             wordsTowardHint = game.wordsTowardHint,
             onHint = onHint,
-            onSubmit = onSubmitButton,
-            onBackspace = onBackspace,
         )
 
         if (game.bonusFound.isNotEmpty()) {
@@ -335,9 +395,8 @@ private fun LandscapeContent(
     onSubmitWheel: () -> Unit,
     onShuffle: () -> Unit,
     onHint: () -> Unit,
-    onSubmitButton: () -> Unit,
-    onBackspace: () -> Unit,
     onSpinClick: () -> Unit,
+    onSettingsClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -361,6 +420,8 @@ private fun LandscapeContent(
                 Spacer(Modifier.width(8.dp))
                 SpinPill(onClick = onSpinClick)
             }
+            Spacer(Modifier.width(8.dp))
+            SettingsIconButton(onClick = onSettingsClick)
         }
         Spacer(Modifier.height(spec.gapAfterTopBar))
 
@@ -420,8 +481,6 @@ private fun LandscapeContent(
                     hintsLeft = game.hintsLeft,
                     wordsTowardHint = game.wordsTowardHint,
                     onHint = onHint,
-                    onSubmit = onSubmitButton,
-                    onBackspace = onBackspace,
                 )
                 if (game.bonusFound.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
@@ -493,6 +552,23 @@ private fun SpinPill(onClick: () -> Unit) {
             color = Color.White,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+@Composable
+private fun SettingsIconButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(Color(0x40FFFFFF))
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+    ) {
+        Text(
+            text = "⚙",
+            color = Color.White,
+            fontSize = 22.sp,
         )
     }
 }

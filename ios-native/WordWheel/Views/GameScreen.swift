@@ -14,6 +14,11 @@ struct GameScreen: View {
 
     @State private var status: String = ""
     @State private var spinDialogOpen = false
+    @State private var settingsOpen = false
+    @State private var pendingDifficultyTier: Difficulty? = nil
+    @State private var pendingNextLevel: Int? = nil
+    /// App opens on the home screen; tapping LEVEL X switches to the puzzle.
+    @State private var atHome = true
 
     /// Local epoch day at the time the view was first built. Used as the
     /// "today" key for streak ticks and the daily-spin gate.
@@ -52,6 +57,57 @@ struct GameScreen: View {
     }
 
     var body: some View {
+        ZStack {
+            if atHome {
+                HomeScreen(
+                    levelNum: game.levelNum,
+                    coins: game.coins,
+                    streak: game.currentStreak,
+                    spinAvailable: game.canSpinToday(today: todayEpochDay),
+                    onResume: { atHome = false },
+                    onSpinClick: { spinDialogOpen = true },
+                    onSettingsClick: { settingsOpen = true },
+                )
+            } else {
+                puzzleBody
+            }
+
+            if spinDialogOpen {
+                SpinWheelDialog(
+                    onSpinResult: { sec in
+                        game.applySpinReward(
+                            today: todayEpochDay,
+                            coinsAdded: sec.coins,
+                            hintsAdded: sec.hints,
+                        )
+                        if sec.coins > 0 { sound.play(.wordFound) }
+                        else if sec.hints > 0 { sound.play(.hint) }
+                    },
+                    onDismiss: { spinDialogOpen = false },
+                )
+            }
+
+            if settingsOpen {
+                SettingsDialog(sound: sound, onDismiss: { settingsOpen = false })
+            }
+
+            if let tier = pendingDifficultyTier {
+                DifficultyDialog(tier: tier, onDismiss: {
+                    let next = pendingNextLevel
+                    pendingDifficultyTier = nil
+                    pendingNextLevel = nil
+                    if let n = next {
+                        advanceTo(level: n)
+                    }
+                })
+            }
+        }
+        .onAppear {
+            game.tickDailyStreak(today: todayEpochDay)
+        }
+    }
+
+    private var puzzleBody: some View {
         GeometryReader { geo in
             let w = geo.size.width
             let h = geo.size.height
@@ -82,22 +138,7 @@ struct GameScreen: View {
                     portraitContent(spec: spec)
                 }
 
-                if spinDialogOpen {
-                    SpinWheelDialog(
-                        onSpinResult: { sec in
-                            game.applySpinReward(
-                                today: todayEpochDay,
-                                coinsAdded: sec.coins,
-                                hintsAdded: sec.hints,
-                            )
-                            if sec.coins > 0 { sound.play(.wordFound) }
-                            else if sec.hints > 0 { sound.play(.hint) }
-                        },
-                        onDismiss: { spinDialogOpen = false },
-                    )
-                }
-
-                if game.isComplete {
+                if game.isComplete && pendingDifficultyTier == nil {
                     CompletionDialog(
                         isLastLevel: game.levelNum >= Level.totalLevels,
                         onNext: advanceLevel,
@@ -106,9 +147,6 @@ struct GameScreen: View {
             }
             .onChange(of: game.isComplete) { complete in
                 if complete { sound.play(.complete) }
-            }
-            .onAppear {
-                game.tickDailyStreak(today: todayEpochDay)
             }
         }
     }
@@ -133,6 +171,14 @@ struct GameScreen: View {
                     }
                     .buttonStyle(.plain)
                 }
+                Button(action: { settingsOpen = true }) {
+                    Text("⚙")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(Color.white.opacity(0.25)))
+                }
+                .buttonStyle(.plain)
             }
             Spacer().frame(height: spec.gapAfterTopBar)
 
@@ -157,8 +203,9 @@ struct GameScreen: View {
             Spacer(minLength: 0)
 
             Spacer().frame(height: spec.gapBeforeButtons)
-            BottomButtons(hintsLeft: game.hintsLeft, wordsTowardHint: game.wordsTowardHint,
-                          onHint: handleHint, onSubmit: handleSubmit, onBackspace: handleBackspace)
+            BottomButtons(hintsLeft: game.hintsLeft,
+                          wordsTowardHint: game.wordsTowardHint,
+                          onHint: handleHint)
 
             if !game.bonusFound.isEmpty {
                 Text("Bonus: \(game.bonusFound.joined(separator: ", "))")
@@ -191,6 +238,14 @@ struct GameScreen: View {
                     }
                     .buttonStyle(.plain)
                 }
+                Button(action: { settingsOpen = true }) {
+                    Text("⚙")
+                        .font(.system(size: 22))
+                        .foregroundColor(.white)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(Color.white.opacity(0.25)))
+                }
+                .buttonStyle(.plain)
             }
             Spacer().frame(height: spec.gapAfterTopBar)
 
@@ -219,8 +274,9 @@ struct GameScreen: View {
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     Spacer().frame(height: spec.gapBeforeButtons)
-                    BottomButtons(hintsLeft: game.hintsLeft, wordsTowardHint: game.wordsTowardHint,
-                                  onHint: handleHint, onSubmit: handleSubmit, onBackspace: handleBackspace)
+                    BottomButtons(hintsLeft: game.hintsLeft,
+                                  wordsTowardHint: game.wordsTowardHint,
+                                  onHint: handleHint)
                     if !game.bonusFound.isEmpty {
                         Text("Bonus: \(game.bonusFound.joined(separator: ", "))")
                             .font(.system(size: 12))
@@ -272,21 +328,9 @@ struct GameScreen: View {
         }
     }
 
-    private func handleSubmit() {
-        status = game.trySubmit()
-        playForStatus(status)
-    }
-
     private func handleHint() {
         status = game.hintRevealRandomLetter()
         playForStatus(status)
-    }
-
-    private func handleBackspace() {
-        if !game.selection.isEmpty {
-            sound.play(.backspace)
-            game.backspace()
-        }
     }
 
     private func playForStatus(_ msg: String) {
@@ -297,9 +341,22 @@ struct GameScreen: View {
     }
 
     private func advanceLevel() {
-        // Carry coins + hint progress into the next level (mirrors Android behaviour).
+        let completed = game.levelNum
         game.coins += 10
-        let next = game.levelNum >= Level.totalLevels ? 1 : game.levelNum + 1
+        let next = completed >= Level.totalLevels ? 1 : completed + 1
+
+        // If this was a tier-boundary level, stage the difficulty banner
+        // first; the actual level transition runs after the banner is
+        // dismissed (handled in the body's DifficultyDialog onDismiss).
+        if let tier = Difficulty.milestone(for: completed) {
+            pendingNextLevel = next
+            pendingDifficultyTier = tier
+        } else {
+            advanceTo(level: next)
+        }
+    }
+
+    private func advanceTo(level next: Int) {
         game.resetTo(
             level: next,
             carriedCoins: game.coins,

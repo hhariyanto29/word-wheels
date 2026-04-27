@@ -29,8 +29,8 @@ targets:
       path: WordWheel/Info.plist
       properties:
         CFBundleDisplayName: Word Wheel
-        CFBundleShortVersionString: "1.6"
-        CFBundleVersion: "4"
+        CFBundleShortVersionString: "1.7"
+        CFBundleVersion: "5"
         UILaunchScreen:
           UIColorName: AccentColor
         UISupportedInterfaceOrientations:

@@ -19,7 +19,20 @@ final class SoundManager: ObservableObject {
     private var players: [Sfx: [AVAudioPlayer]] = [:]
     private let poolPerSfx = 3  // concurrent streams per effect
 
+    /// User-level toggle. When false, `play(_:)` is a no-op. Persisted
+    /// across launches via UserDefaults under a dedicated suite so it
+    /// stays separate from the game-state schema.
+    @Published var sfxEnabled: Bool {
+        didSet { audioDefaults.set(sfxEnabled, forKey: "sfx_enabled") }
+    }
+
+    private let audioDefaults: UserDefaults
+
     init() {
+        let suite = UserDefaults(suiteName: "word_wheel_audio") ?? .standard
+        self.audioDefaults = suite
+        // Default to ON for first-run installs.
+        self.sfxEnabled = suite.object(forKey: "sfx_enabled") as? Bool ?? true
         configureAudioSession()
         preload()
     }
@@ -50,6 +63,7 @@ final class SoundManager: ObservableObject {
     }
 
     func play(_ sfx: Sfx, volume: Float = 1.0) {
+        guard sfxEnabled else { return }
         guard let pool = players[sfx], !pool.isEmpty else { return }
         // Pick any player that isn't currently playing; fall back to the
         // first slot if all are busy (cuts off the oldest sound).
