@@ -36,6 +36,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Validate level data integrity BEFORE the slow build steps so
+      # broken puzzles fail fast and don't burn an Android SDK download.
+      # Tests:
+      #   - every crossword word in every level connects to another
+      #     (no isolated/floating words in the grid)
+      #   - every answer is spellable from the wheel letters
+      #   - no conflicting letters at shared cells
+      - name: Validate level data
+        run: python3 tools/validate_levels.py
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:

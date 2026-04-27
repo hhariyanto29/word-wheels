@@ -17,18 +17,18 @@ Length: 10 / 30 ✓
 ## Short description (max 80 chars)
 
 ```
-Drag letters on the wheel to form words and fill the crossword. 10 offline levels.
+Drag letters on the wheel to spell words. 100 offline puzzle levels. No ads.
 ```
 
-Length: 80 / 80 ✓
+Length: 76 / 80 ✓
 
-Alternative (shorter, more punchy):
+Alternative (more action-y):
 
 ```
-Swipe letters. Fill crosswords. 10 levels of offline word puzzles. No ads.
+Swipe letters. Fill crosswords. 100 levels of offline word puzzles. No ads.
 ```
 
-Length: 73 / 80 ✓
+Length: 75 / 80 ✓
 
 ---
 
@@ -37,8 +37,8 @@ Length: 73 / 80 ✓
 ```
 Word Wheel is a pocket-size word puzzle. Drag across the letters on the
 wheel to form words, fill the crossword above, and work your way through
-10 hand-crafted levels — all without ads, accounts, or an internet
-connection.
+100 progressively harder levels — all without ads, accounts, or an
+internet connection.
 
 ★ HOW TO PLAY
 • Drag from letter to letter on the wheel to build a word
@@ -49,7 +49,7 @@ connection.
 • Tap the backspace button to remove the last letter from your guess
 
 ★ FEATURES
-• 10 progressive levels, from 4-letter puzzles up to 7-letter challenges
+• 100 progressive levels, from 4-letter starters up to 9-letter challenges
 • Bonus word bank — every level has extra valid words beyond the crossword
 • Hint system — reveal a random letter whenever you get stuck
 • Earn a free hint every 10 words you find
