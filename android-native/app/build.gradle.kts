@@ -1,8 +1,35 @@
+import java.io.File
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// ─── Upload key wiring ──────────────────────────────────────────────
+// Read keystore credentials from environment variables when present
+// (CI). For local builds without env vars set, the release build
+// falls back to the debug keystore so `./gradlew assembleRelease`
+// keeps working without secrets.
+//
+// CI sets all four:
+//   UPLOAD_KEYSTORE_PATH      – absolute path to the .jks file
+//   UPLOAD_KEYSTORE_PASSWORD  – password protecting the keystore
+//   UPLOAD_KEY_ALIAS          – alias inside the keystore
+//   UPLOAD_KEY_PASSWORD       – password for the alias entry
+//
+// See android-native/SIGNING.md for how to generate a keystore and
+// register it as GitHub Secrets.
+val uploadKeystorePath = System.getenv("UPLOAD_KEYSTORE_PATH")
+val uploadKeystorePassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+val uploadKeyAlias = System.getenv("UPLOAD_KEY_ALIAS")
+val uploadKeyPassword = System.getenv("UPLOAD_KEY_PASSWORD")
+val hasUploadKey =
+    uploadKeystorePath != null &&
+    uploadKeystorePassword != null &&
+    uploadKeyAlias != null &&
+    uploadKeyPassword != null &&
+    File(uploadKeystorePath).exists()
 
 android {
     namespace = "com.wordwheel.game"
@@ -28,6 +55,17 @@ android {
             enableV2Signing = true
             enableV3Signing = true
         }
+        if (hasUploadKey) {
+            create("upload") {
+                storeFile = file(uploadKeystorePath!!)
+                storePassword = uploadKeystorePassword
+                keyAlias = uploadKeyAlias
+                keyPassword = uploadKeyPassword
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
     }
 
     buildTypes {
@@ -38,9 +76,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Sign release with debug key so the APK is installable for testing.
-            // Replace with a real keystore before publishing to Play Store.
-            signingConfig = signingConfigs.getByName("debug")
+            // Use the upload key when CI provides it (Play Store builds);
+            // fall back to the debug key for local builds and PR CI runs
+            // so contributors can build releases without the secrets.
+            signingConfig = if (hasUploadKey) {
+                signingConfigs.getByName("upload")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
         debug {
             isMinifyEnabled = false
