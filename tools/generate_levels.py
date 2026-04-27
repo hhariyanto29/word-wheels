@@ -569,17 +569,33 @@ def emit_kotlin(levels: list[dict]) -> str:
                    f"          words = listOf({words_str})),\n")
     out.append(")\n\n")
 
-    # Bonus map
-    out.append("private val LEVEL_BONUS: Map<String, List<String>> = mapOf(\n")
-    seen = set()
+    # Bonus map — split into chunks because the bonus lists for high
+    # levels can have 200+ entries; placing them all in one mapOf()
+    # blows past Kotlin's 64 KB <clinit> bytecode limit. Each chunk is
+    # its own private function returning a partial map; we merge them
+    # at top level via buildMap.
+    seen: set[str] = set()
+    bonus_entries: list[tuple[str, list[str]]] = []
     for L in levels:
         key = L["letters"]
         if key in seen:
             continue
         seen.add(key)
-        bonus_str = ", ".join(f'"{w}"' for w in L["bonus"])
-        out.append(f'    "{key}" to listOf({bonus_str}),\n')
-    out.append(")\n")
+        bonus_entries.append((key, L["bonus"]))
+
+    out.append("private val LEVEL_BONUS: Map<String, List<String>> = buildMap {\n")
+    chunk_size = 10
+    n_chunks = (len(bonus_entries) + chunk_size - 1) // chunk_size
+    for i in range(n_chunks):
+        out.append(f"    putAll(bonusChunk{i + 1}())\n")
+    out.append("}\n\n")
+    for i in range(n_chunks):
+        chunk = bonus_entries[i * chunk_size : (i + 1) * chunk_size]
+        out.append(f"private fun bonusChunk{i + 1}(): Map<String, List<String>> = mapOf(\n")
+        for key, words in chunk:
+            bonus_str = ", ".join(f'"{w}"' for w in words)
+            out.append(f'    "{key}" to listOf({bonus_str}),\n')
+        out.append(")\n\n")
 
     return "".join(out)
 
