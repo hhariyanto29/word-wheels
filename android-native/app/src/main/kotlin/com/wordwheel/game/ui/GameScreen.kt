@@ -2,6 +2,7 @@ package com.wordwheel.game.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -82,7 +83,16 @@ fun GameScreen() {
         state
     }
 
+    // Tick the streak once per app open. Uses the device's local epoch
+    // day so the rollover happens at the player's local midnight.
+    LaunchedEffect(Unit) {
+        val today = java.time.LocalDate.now().toEpochDay()
+        game.tickDailyStreak(today)
+    }
+    val today = remember { java.time.LocalDate.now().toEpochDay() }
+
     var status by remember { mutableStateOf("") }
+    var spinDialogOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(game.levelNum, game.isComplete()) {
         if (game.isComplete()) sound?.play(Sfx.Complete)
@@ -146,6 +156,8 @@ fun GameScreen() {
             LandscapeContent(
                 game = game,
                 level = game.levelNum,
+                streak = game.currentStreak,
+                spinAvailable = game.canSpinToday(today),
                 status = status,
                 spec = spec,
                 onSubmitWheel = {
@@ -161,11 +173,14 @@ fun GameScreen() {
                         sound?.play(Sfx.Backspace); game.backspace()
                     }
                 },
+                onSpinClick = { spinDialogOpen = true },
             )
         } else {
             PortraitContent(
                 game = game,
                 level = game.levelNum,
+                streak = game.currentStreak,
+                spinAvailable = game.canSpinToday(today),
                 status = status,
                 spec = spec,
                 onSubmitWheel = {
@@ -181,6 +196,22 @@ fun GameScreen() {
                         sound?.play(Sfx.Backspace); game.backspace()
                     }
                 },
+                onSpinClick = { spinDialogOpen = true },
+            )
+        }
+
+        if (spinDialogOpen) {
+            SpinWheelDialog(
+                onSpinResult = { sector ->
+                    game.applySpinReward(
+                        today = today,
+                        coinsAdded = sector.coins,
+                        hintsAdded = sector.hints,
+                    )
+                    if (sector.coins > 0) sound?.play(Sfx.WordFound)
+                    else if (sector.hints > 0) sound?.play(Sfx.Hint)
+                },
+                onDismiss = { spinDialogOpen = false },
             )
         }
 
@@ -203,6 +234,8 @@ fun GameScreen() {
 private fun PortraitContent(
     game: GameState,
     level: Int,
+    streak: Int,
+    spinAvailable: Boolean,
     status: String,
     spec: Spec,
     onSubmitWheel: () -> Unit,
@@ -210,6 +243,7 @@ private fun PortraitContent(
     onHint: () -> Unit,
     onSubmitButton: () -> Unit,
     onBackspace: () -> Unit,
+    onSpinClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -217,12 +251,24 @@ private fun PortraitContent(
             .padding(horizontal = spec.outerH, vertical = spec.outerV),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        TopBar(
-            coins = game.coins,
-            found = game.found.size,
-            total = game.answers.size,
-            level = level,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                TopBar(
+                    coins = game.coins,
+                    found = game.found.size,
+                    total = game.answers.size,
+                    level = level,
+                    streak = streak,
+                )
+            }
+            if (spinAvailable) {
+                Spacer(Modifier.width(8.dp))
+                SpinPill(onClick = onSpinClick)
+            }
+        }
         Spacer(Modifier.height(spec.gapAfterTopBar))
 
         CrosswordGrid(
@@ -282,6 +328,8 @@ private fun PortraitContent(
 private fun LandscapeContent(
     game: GameState,
     level: Int,
+    streak: Int,
+    spinAvailable: Boolean,
     status: String,
     spec: Spec,
     onSubmitWheel: () -> Unit,
@@ -289,18 +337,31 @@ private fun LandscapeContent(
     onHint: () -> Unit,
     onSubmitButton: () -> Unit,
     onBackspace: () -> Unit,
+    onSpinClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = spec.outerH, vertical = spec.outerV),
     ) {
-        TopBar(
-            coins = game.coins,
-            found = game.found.size,
-            total = game.answers.size,
-            level = level,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                TopBar(
+                    coins = game.coins,
+                    found = game.found.size,
+                    total = game.answers.size,
+                    level = level,
+                    streak = streak,
+                )
+            }
+            if (spinAvailable) {
+                Spacer(Modifier.width(8.dp))
+                SpinPill(onClick = onSpinClick)
+            }
+        }
         Spacer(Modifier.height(spec.gapAfterTopBar))
 
         Row(
@@ -415,5 +476,23 @@ private fun StatusBubble(status: String, fontSp: Int) {
         }
     } else {
         Spacer(Modifier.height(30.dp))
+    }
+}
+
+@Composable
+private fun SpinPill(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(22.dp))
+            .background(GameColors.GemGreen)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = "🎁 SPIN",
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }

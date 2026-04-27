@@ -31,6 +31,11 @@ final class GameState: ObservableObject {
     @Published var hintsLeft: Int = 5
     @Published var wordsTowardHint: Int = 0
 
+    // ── Meta-progression (streak + daily spin) ──────────────────────
+    @Published var lastPlayedEpochDay: Int = 0
+    @Published var currentStreak: Int = 0
+    @Published var lastSpinEpochDay: Int = 0
+
     /// Callback invoked after each mutating operation. Wired to a
     /// `GameStorage.save(_:)` closure by `GameScreen`.
     var persist: () -> Void = {}
@@ -176,7 +181,39 @@ final class GameState: ObservableObject {
             found: found,
             bonusFound: bonusFound,
             revealed: reveal,
+            lastPlayedEpochDay: lastPlayedEpochDay,
+            currentStreak: currentStreak,
+            lastSpinEpochDay: lastSpinEpochDay,
         )
+    }
+
+    // MARK: - Streak
+
+    /// Call once on app open. Bumps the streak if exactly one day has
+    /// passed since the last play, resets to 1 on bigger gaps, and is
+    /// a no-op if the player already opened the app today.
+    func tickDailyStreak(today: Int) {
+        if lastPlayedEpochDay == today { return }
+        if lastPlayedEpochDay == 0 {
+            currentStreak = 1
+        } else if today - lastPlayedEpochDay == 1 {
+            currentStreak += 1
+        } else {
+            currentStreak = 1  // missed a day — reset
+        }
+        lastPlayedEpochDay = today
+        persist()
+    }
+
+    // MARK: - Daily spin
+
+    func canSpinToday(today: Int) -> Bool { lastSpinEpochDay != today }
+
+    func applySpinReward(today: Int, coinsAdded: Int = 0, hintsAdded: Int = 0) {
+        coins += coinsAdded
+        hintsLeft += hintsAdded
+        lastSpinEpochDay = today
+        persist()
     }
 
     /// Rehydrate from a previously-saved snapshot. Defensive — if the saved
@@ -214,6 +251,9 @@ final class GameState: ObservableObject {
         self.coins = max(0, s.coins)
         self.hintsLeft = max(0, s.hintsLeft)
         self.wordsTowardHint = max(0, min(s.wordsTowardHint, 9))
+        self.lastPlayedEpochDay = max(0, s.lastPlayedEpochDay)
+        self.currentStreak = max(0, s.currentStreak)
+        self.lastSpinEpochDay = max(0, s.lastSpinEpochDay)
         self.selection = []
         // No persist() — restore() reads existing saved data.
     }

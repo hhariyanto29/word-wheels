@@ -5,6 +5,7 @@ struct TopBar: View {
     let found: Int
     let total: Int
     let level: Int
+    var streak: Int = 0
 
     var body: some View {
         HStack(spacing: 0) {
@@ -17,14 +18,25 @@ struct TopBar: View {
                 .font(.system(size: 17, weight: .bold))
                 .foregroundColor(.white)
 
-            Spacer().frame(width: 18)
+            Spacer().frame(width: 14)
 
             // Words badge
             Text("W  \(found)/\(total)")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.white)
-                .padding(.horizontal, 12).padding(.vertical, 4)
+                .padding(.horizontal, 10).padding(.vertical, 4)
                 .background(RoundedRectangle(cornerRadius: 14).fill(GameColors.badgeBlue))
+
+            // Streak badge — only when there's an active streak
+            if streak > 0 {
+                Spacer().frame(width: 8)
+                Text("🔥 \(streak)")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(RoundedRectangle(cornerRadius: 14)
+                        .fill(Color(red: 1, green: 0.44, blue: 0.16, opacity: 0.25)))
+            }
 
             Spacer()
 

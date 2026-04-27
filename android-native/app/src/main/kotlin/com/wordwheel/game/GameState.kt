@@ -48,6 +48,11 @@ class GameState(
     var hintsLeft by mutableStateOf(initialHints)
     var wordsTowardHint by mutableStateOf(initialWordsTowardHint)
 
+    // ── Meta-progression (streak + daily spin) ──────────────────────
+    var lastPlayedEpochDay by mutableStateOf(0L)
+    var currentStreak by mutableStateOf(0)
+    var lastSpinEpochDay by mutableStateOf(0L)
+
     fun currentWord(): String =
         selection.mapNotNull { idx -> tiles.getOrNull(idx) }.joinToString("")
 
@@ -174,7 +179,41 @@ class GameState(
         found = found.toList(),
         bonusFound = bonusFound.toList(),
         revealed = revealed.toMap(),
+        lastPlayedEpochDay = lastPlayedEpochDay,
+        currentStreak = currentStreak,
+        lastSpinEpochDay = lastSpinEpochDay,
     )
+
+    // ── Streak ────────────────────────────────────────────────────
+    /**
+     * Call once on app open. Bumps the streak if exactly one day has
+     * passed since the last play, resets to 1 on bigger gaps, and
+     * is a no-op if the player already opened the app today.
+     */
+    fun tickDailyStreak(today: Long) {
+        if (lastPlayedEpochDay == today) return
+        currentStreak = when {
+            lastPlayedEpochDay == 0L -> 1
+            today - lastPlayedEpochDay == 1L -> currentStreak + 1
+            else -> 1  // missed a day — reset
+        }
+        lastPlayedEpochDay = today
+        persist()
+    }
+
+    // ── Daily spin ────────────────────────────────────────────────
+    fun canSpinToday(today: Long): Boolean = lastSpinEpochDay != today
+
+    /**
+     * Apply a spin reward and mark today as claimed. Caller picked the
+     * reward via the wheel UI; this just records the result.
+     */
+    fun applySpinReward(today: Long, coinsAdded: Int = 0, hintsAdded: Int = 0) {
+        coins += coinsAdded
+        hintsLeft += hintsAdded
+        lastSpinEpochDay = today
+        persist()
+    }
 
     /**
      * Rehydrate from a previously-saved snapshot. Defensive — if the saved
@@ -204,6 +243,9 @@ class GameState(
         coins = s.coins
         hintsLeft = s.hintsLeft
         wordsTowardHint = s.wordsTowardHint
+        lastPlayedEpochDay = s.lastPlayedEpochDay
+        currentStreak = s.currentStreak
+        lastSpinEpochDay = s.lastSpinEpochDay
         // No persist() here — restore is reading existing saved data.
     }
 }

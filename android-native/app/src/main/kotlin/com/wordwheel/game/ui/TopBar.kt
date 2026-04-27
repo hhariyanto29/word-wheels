@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.sp
 import com.wordwheel.game.theme.GameColors
 
 @Composable
-fun TopBar(coins: Int, found: Int, total: Int, level: Int) {
+fun TopBar(coins: Int, found: Int, total: Int, level: Int, streak: Int = 0) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -40,14 +40,14 @@ fun TopBar(coins: Int, found: Int, total: Int, level: Int) {
             fontWeight = FontWeight.Bold,
         )
 
-        Spacer(Modifier.width(18.dp))
+        Spacer(Modifier.width(14.dp))
 
         // Words badge
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(14.dp))
                 .background(GameColors.BadgeBlue)
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .padding(horizontal = 10.dp, vertical = 4.dp),
         ) {
             Text(
                 text = "W  $found/$total",
@@ -55,6 +55,25 @@ fun TopBar(coins: Int, found: Int, total: Int, level: Int) {
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
             )
+        }
+
+        // Streak badge — only shown once the player has a streak going.
+        // Hidden at streak==0 to avoid noise on first install.
+        if (streak > 0) {
+            Spacer(Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0x40FF7028))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    text = "🔥 $streak",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
 
         Spacer(Modifier.weight(1f))

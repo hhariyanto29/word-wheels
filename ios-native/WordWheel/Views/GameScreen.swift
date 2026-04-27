@@ -13,6 +13,18 @@ struct GameScreen: View {
     @StateObject private var game: GameState
 
     @State private var status: String = ""
+    @State private var spinDialogOpen = false
+
+    /// Local epoch day at the time the view was first built. Used as the
+    /// "today" key for streak ticks and the daily-spin gate.
+    private static func todayEpochDay() -> Int {
+        let secs = Date().timeIntervalSince1970
+        // Apply current timezone offset so the rollover happens at the
+        // user's local midnight, not UTC midnight.
+        let local = secs + Double(TimeZone.current.secondsFromGMT())
+        return Int(local / 86400)
+    }
+    @State private var todayEpochDay: Int = GameScreen.todayEpochDay()
 
     init(storage: GameStorage = GameStorage()) {
         self.storage = storage
@@ -70,6 +82,21 @@ struct GameScreen: View {
                     portraitContent(spec: spec)
                 }
 
+                if spinDialogOpen {
+                    SpinWheelDialog(
+                        onSpinResult: { sec in
+                            game.applySpinReward(
+                                today: todayEpochDay,
+                                coinsAdded: sec.coins,
+                                hintsAdded: sec.hints,
+                            )
+                            if sec.coins > 0 { sound.play(.wordFound) }
+                            else if sec.hints > 0 { sound.play(.hint) }
+                        },
+                        onDismiss: { spinDialogOpen = false },
+                    )
+                }
+
                 if game.isComplete {
                     CompletionDialog(
                         isLastLevel: game.levelNum >= Level.totalLevels,
@@ -80,6 +107,9 @@ struct GameScreen: View {
             .onChange(of: game.isComplete) { complete in
                 if complete { sound.play(.complete) }
             }
+            .onAppear {
+                game.tickDailyStreak(today: todayEpochDay)
+            }
         }
     }
 
@@ -88,8 +118,22 @@ struct GameScreen: View {
     @ViewBuilder
     private func portraitContent(spec: Spec) -> some View {
         VStack(spacing: 0) {
-            TopBar(coins: game.coins, found: game.found.count,
-                   total: game.answers.count, level: game.levelNum)
+            HStack(spacing: 8) {
+                TopBar(coins: game.coins, found: game.found.count,
+                       total: game.answers.count, level: game.levelNum,
+                       streak: game.currentStreak)
+                if game.canSpinToday(today: todayEpochDay) {
+                    Button(action: { spinDialogOpen = true }) {
+                        Text("🎁 SPIN")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .background(RoundedRectangle(cornerRadius: 22)
+                                .fill(GameColors.gemGreen))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
             Spacer().frame(height: spec.gapAfterTopBar)
 
             CrosswordGrid(level: game.level, visible: game.visibleLetters(),
@@ -132,8 +176,22 @@ struct GameScreen: View {
     @ViewBuilder
     private func landscapeContent(spec: Spec) -> some View {
         VStack(spacing: 0) {
-            TopBar(coins: game.coins, found: game.found.count,
-                   total: game.answers.count, level: game.levelNum)
+            HStack(spacing: 8) {
+                TopBar(coins: game.coins, found: game.found.count,
+                       total: game.answers.count, level: game.levelNum,
+                       streak: game.currentStreak)
+                if game.canSpinToday(today: todayEpochDay) {
+                    Button(action: { spinDialogOpen = true }) {
+                        Text("🎁 SPIN")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12).padding(.vertical, 8)
+                            .background(RoundedRectangle(cornerRadius: 22)
+                                .fill(GameColors.gemGreen))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
             Spacer().frame(height: spec.gapAfterTopBar)
 
             HStack(alignment: .center, spacing: 16) {

@@ -7,7 +7,7 @@ import Foundation
 /// Mirrors the Android `GameSnapshot` schema one-for-one so both
 /// platforms save and restore the same player state.
 struct GameSnapshot: Codable {
-    static let schemaVersion = 1
+    static let schemaVersion = 2
 
     var v: Int = schemaVersion
     var levelNum: Int
@@ -20,6 +20,14 @@ struct GameSnapshot: Codable {
     var found: [String]
     var bonusFound: [String]
     var revealed: [RevealedCell]
+
+    // ── Meta-progression (schema v2) ────────────────────────────────
+    /// Local epoch day the player last opened the app while the streak
+    /// ticked. Defaults to 0 for v1 snapshots.
+    var lastPlayedEpochDay: Int = 0
+    var currentStreak: Int = 0
+    /// Local epoch day the player last claimed the daily spin.
+    var lastSpinEpochDay: Int = 0
 
     struct RevealedCell: Codable {
         var row: Int
