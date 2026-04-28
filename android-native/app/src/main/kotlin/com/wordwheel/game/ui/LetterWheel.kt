@@ -51,6 +51,11 @@ fun LetterWheel(
             .aspectRatio(1f)
             .onSizeChanged { wheelSize = it.toSize() }
             .pointerInput(tiles) {
+                // `lastPos` tracks the previous drag sample so we can
+                // interpolate a fast slide. Without interpolation a quick
+                // swipe across the wheel skips tiles whose centers fall
+                // between consecutive drag events.
+                var lastPos: Offset? = null
                 detectDragGestures(
                     onDragStart = { pos ->
                         val hit = hitTest(wheelSize, tiles.size, pos)
@@ -59,16 +64,45 @@ fun LetterWheel(
                             selection.add(hit)
                             sound?.play(Sfx.Select)
                         }
+                        lastPos = pos
                     },
                     onDrag = { change, _ ->
-                        val hit = hitTest(wheelSize, tiles.size, change.position)
-                        if (hit >= 0 && !selection.contains(hit)) {
-                            selection.add(hit)
-                            sound?.play(Sfx.Select)
+                        val from = lastPos ?: change.position
+                        val to = change.position
+                        // Sample several points along the segment so a
+                        // fast swipe still registers each tile it crosses.
+                        // Half a tile-radius per step is small enough that
+                        // we can't skip a tile, big enough to keep cost low.
+                        val tileRpx = wheelSize.width.coerceAtLeast(1f) *
+                            0.5f * 0.95f * 0.17f
+                        val stepLen = tileRpx.coerceAtLeast(1f) * 0.5f
+                        val steps = (distance(from, to) / stepLen)
+                            .toInt()
+                            .coerceIn(1, 12)
+                        for (s in 1..steps) {
+                            val t = s.toFloat() / steps
+                            val p = Offset(
+                                from.x + (to.x - from.x) * t,
+                                from.y + (to.y - from.y) * t,
+                            )
+                            val hit = hitTest(wheelSize, tiles.size, p)
+                            if (hit < 0 || hit == selection.lastOrNull()) continue
+                            // Backtrack: dragging back over the previous
+                            // tile shortens the word — feels natural and
+                            // matches Wordscapes / Words of Wonders.
+                            if (selection.size >= 2 &&
+                                hit == selection[selection.size - 2]) {
+                                selection.removeAt(selection.size - 1)
+                                sound?.play(Sfx.Select)
+                            } else if (!selection.contains(hit)) {
+                                selection.add(hit)
+                                sound?.play(Sfx.Select)
+                            }
                         }
+                        lastPos = to
                     },
-                    onDragEnd = { onSubmit() },
-                    onDragCancel = { onSubmit() },
+                    onDragEnd = { lastPos = null; onSubmit() },
+                    onDragCancel = { lastPos = null; onSubmit() },
                 )
             }
             .pointerInput(tiles) {
@@ -186,7 +220,11 @@ private fun hitTest(size: Size, n: Int, pos: Offset): Int {
     val radius = minOf(size.width, size.height) / 2f * 0.95f
     val tileR = radius * 0.17f
     val positions = tilePositions(size, n)
-    return positions.indexOfFirst { distance(it, pos) <= tileR + 12f }
+    // Generous hit padding (~40% beyond the visible tile) keeps drags
+    // forgiving when fingers slide quickly — the previous +12px constant
+    // was tight enough that fast swipes regularly missed tiles.
+    val hitR = tileR * 1.45f
+    return positions.indexOfFirst { distance(it, pos) <= hitR }
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTileLetter(

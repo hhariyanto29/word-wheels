@@ -14,6 +14,10 @@ struct LetterWheel: View {
 
     @EnvironmentObject private var sound: SoundManager
     @State private var wheelSize: CGSize = .zero
+    /// Last drag location captured by the gesture handler — used to
+    /// interpolate intermediate hit-tests so a fast slide doesn't skip
+    /// past tiles whose centers fall between two consecutive events.
+    @State private var lastDragPos: CGPoint? = nil
 
     var body: some View {
         GeometryReader { geo in
@@ -75,32 +79,52 @@ struct LetterWheel: View {
             .simultaneousGesture(
                 DragGesture(minimumDistance: 2)
                     .onChanged { value in
-                        // First hit starts the selection
+                        // First hit starts the selection.
                         if selection.isEmpty {
-                            let h = hitTest(
-                                size: size,
-                                positions: positions,
-                                tileR: tileR,
-                                point: value.location,
-                            )
-                            if let h {
+                            if let h = hitTest(size: size, positions: positions,
+                                               tileR: tileR, point: value.location) {
                                 selection = [h]
                                 sound.play(.select)
                             }
+                            lastDragPos = value.location
                             return
                         }
-                        let h = hitTest(
-                            size: size,
-                            positions: positions,
-                            tileR: tileR,
-                            point: value.location,
-                        )
-                        if let h, !selection.contains(h) {
-                            selection.append(h)
-                            sound.play(.select)
+                        // Interpolate between the previous sample and the
+                        // current one. Without this, fast swipes skip
+                        // tiles whose centers fall between two events.
+                        let from = lastDragPos ?? value.location
+                        let to = value.location
+                        let dx = to.x - from.x
+                        let dy = to.y - from.y
+                        let dist = sqrt(dx * dx + dy * dy)
+                        // Half a tile-radius per step keeps us under the
+                        // tile spacing so we can't skip a tile.
+                        let stepLen = max(tileR * 0.5, 1)
+                        let steps = max(1, min(12, Int(dist / stepLen)))
+                        for s in 1...steps {
+                            let t = CGFloat(s) / CGFloat(steps)
+                            let p = CGPoint(x: from.x + dx * t, y: from.y + dy * t)
+                            guard let h = hitTest(size: size, positions: positions,
+                                                  tileR: tileR, point: p) else { continue }
+                            if h == selection.last { continue }
+                            // Backtrack: dragging back over the previous
+                            // tile shortens the word — matches the feel
+                            // of Wordscapes / Words of Wonders.
+                            if selection.count >= 2,
+                               h == selection[selection.count - 2] {
+                                selection.removeLast()
+                                sound.play(.select)
+                            } else if !selection.contains(h) {
+                                selection.append(h)
+                                sound.play(.select)
+                            }
                         }
+                        lastDragPos = to
                     }
-                    .onEnded { _ in onSubmit() }
+                    .onEnded { _ in
+                        lastDragPos = nil
+                        onSubmit()
+                    }
             )
             .onTapGesture { location in
                 // Center → shuffle
@@ -124,10 +148,15 @@ struct LetterWheel: View {
     }
 
     private func hitTest(size: CGSize, positions: [CGPoint], tileR: CGFloat, point: CGPoint) -> Int? {
+        // Generous hit padding (~45% beyond the visible tile) keeps the
+        // gesture forgiving when fingers slide quickly. The previous
+        // +12pt constant was tight enough that fast swipes regularly
+        // missed tiles between samples.
+        let hitR = tileR * 1.45
         for (i, p) in positions.enumerated() {
             let dx = p.x - point.x
             let dy = p.y - point.y
-            if sqrt(dx * dx + dy * dy) <= tileR + 12 { return i }
+            if sqrt(dx * dx + dy * dy) <= hitR { return i }
         }
         return nil
     }

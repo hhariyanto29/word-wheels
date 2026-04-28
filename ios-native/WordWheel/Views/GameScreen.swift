@@ -15,6 +15,10 @@ struct GameScreen: View {
     @State private var status: String = ""
     @State private var spinDialogOpen = false
     @State private var settingsOpen = false
+    /// Spin reward is captured when the wheel stops, but not credited
+    /// to the coin counter until the dialog dismisses — that way the
+    /// TopBar's count-up + pulse animation plays visibly.
+    @State private var pendingSpinReward: SpinSector? = nil
     @State private var pendingDifficultyTier: Difficulty? = nil
     @State private var pendingNextLevel: Int? = nil
     /// App opens on the home screen; tapping LEVEL X switches to the puzzle.
@@ -74,16 +78,25 @@ struct GameScreen: View {
 
             if spinDialogOpen {
                 SpinWheelDialog(
-                    onSpinResult: { sec in
-                        game.applySpinReward(
-                            today: todayEpochDay,
-                            coinsAdded: sec.coins,
-                            hintsAdded: sec.hints,
-                        )
-                        if sec.coins > 0 { sound.play(.wordFound) }
-                        else if sec.hints > 0 { sound.play(.hint) }
+                    // Stash the result; we don't credit the player's
+                    // account until the dialog dismisses. That way the
+                    // TopBar's count-up + pulse animation actually
+                    // plays visibly, because before dismiss the dialog
+                    // covers the bar.
+                    onSpinResult: { sec in pendingSpinReward = sec },
+                    onDismiss: {
+                        if let sec = pendingSpinReward {
+                            game.applySpinReward(
+                                today: todayEpochDay,
+                                coinsAdded: sec.coins,
+                                hintsAdded: sec.hints,
+                            )
+                            if sec.coins > 0 { sound.play(.wordFound) }
+                            else if sec.hints > 0 { sound.play(.hint) }
+                        }
+                        pendingSpinReward = nil
+                        spinDialogOpen = false
                     },
-                    onDismiss: { spinDialogOpen = false },
                 )
             }
 
@@ -207,12 +220,10 @@ struct GameScreen: View {
                           wordsTowardHint: game.wordsTowardHint,
                           onHint: handleHint)
 
-            if !game.bonusFound.isEmpty {
-                Text("Bonus: \(game.bonusFound.joined(separator: ", "))")
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.627))
-                    .padding(.top, 4)
-            }
+            // Always reserve the bonus row's height so finding a bonus
+            // word doesn't reflow the wheel column.
+            Spacer().frame(height: 4)
+            bonusRow
         }
         .padding(.horizontal, spec.outerH)
         .padding(.vertical, spec.outerV)
@@ -277,12 +288,10 @@ struct GameScreen: View {
                     BottomButtons(hintsLeft: game.hintsLeft,
                                   wordsTowardHint: game.wordsTowardHint,
                                   onHint: handleHint)
-                    if !game.bonusFound.isEmpty {
-                        Text("Bonus: \(game.bonusFound.joined(separator: ", "))")
-                            .font(.system(size: 12))
-                            .foregroundColor(.white.opacity(0.627))
-                            .padding(.top, 4)
-                    }
+                    // Always reserve the bonus row's height so finding
+                    // a bonus word doesn't reflow the wheel column.
+                    Spacer().frame(height: 4)
+                    bonusRow
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -293,28 +302,58 @@ struct GameScreen: View {
 
     // MARK: - Reusable bits
 
+    // Fixed-height wrappers — the wheel below uses a `GeometryReader`
+    // that fills the remaining vertical space, so any slot whose height
+    // varies frame-to-frame would resize the wheel as the player types
+    // or as a status message appears. Reserving a constant height per
+    // slot keeps the wheel rock-solid.
+    private static let wordPreviewSlotHeight: CGFloat = 40
+    private static let statusSlotHeight: CGFloat = 32
+    private static let bonusRowSlotHeight: CGFloat = 22
+
     @ViewBuilder private var wordPreview: some View {
-        if !game.currentWord().isEmpty {
-            Text(game.currentWord())
-                .font(.system(size: 20, weight: .bold))
-                .foregroundColor(GameColors.letterColor)
-                .padding(.horizontal, 20).padding(.vertical, 8)
-                .background(RoundedRectangle(cornerRadius: 18).fill(GameColors.wheelBg))
-        } else {
-            Spacer().frame(height: 36)
+        ZStack {
+            if !game.currentWord().isEmpty {
+                Text(game.currentWord())
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(GameColors.letterColor)
+                    .padding(.horizontal, 20).padding(.vertical, 8)
+                    .background(RoundedRectangle(cornerRadius: 18).fill(GameColors.wheelBg))
+            }
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.wordPreviewSlotHeight)
     }
 
     @ViewBuilder private func statusBubble(spec: Spec) -> some View {
-        if !status.isEmpty {
-            Text(status)
-                .font(.system(size: CGFloat(spec.statusFontSp)))
-                .foregroundColor(.white)
-                .padding(.horizontal, 14).padding(.vertical, 6)
-                .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.549)))
-        } else {
-            Spacer().frame(height: 30)
+        ZStack {
+            if !status.isEmpty {
+                Text(status)
+                    .font(.system(size: CGFloat(spec.statusFontSp)))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14).padding(.vertical, 6)
+                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.549)))
+            }
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.statusSlotHeight)
+    }
+
+    @ViewBuilder private var bonusRow: some View {
+        ZStack {
+            if !game.bonusFound.isEmpty {
+                // .lineLimit(1) prevents the row from wrapping to a
+                // second line and getting clipped by our fixed height.
+                Text("Bonus: \(game.bonusFound.joined(separator: ", "))")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.627))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, 12)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.bonusRowSlotHeight)
     }
 
     // MARK: - Event handlers

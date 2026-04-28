@@ -43,27 +43,37 @@ fun BottomButtons(
 @Composable
 private fun HintButton(hintsLeft: Int, wordsTowardHint: Int, onHint: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        // Outer container is 14dp larger than the 64dp button so the
+        // count badge has room to sit at the corner WITHOUT overflowing
+        // the parent or being clipped. The previous offset(+6, -4) on
+        // the 64dp parent pushed the badge past the right edge and
+        // hid the digit on devices that didn't expand the row.
         Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(
-                    if (hintsLeft > 0) Color(0xFFFFB400)
-                    else Color(0xB4282828)
-                )
-                .clickable(onClick = onHint),
-            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(78.dp),
         ) {
-            Text(
-                text = "\uD83D\uDCA1",
-                fontSize = 28.sp,
-            )
-            // Hint count badge in the corner
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .align(Alignment.Center)
+                    .clip(CircleShape)
+                    .background(
+                        if (hintsLeft > 0) Color(0xFFFFB400)
+                        else Color(0xB4282828)
+                    )
+                    .clickable(onClick = onHint),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "\uD83D\uDCA1",
+                    fontSize = 28.sp,
+                )
+            }
+            // Hint count badge — positioned inside the outer 78dp box,
+            // so even a 2-digit count (e.g. "12") stays fully visible.
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(x = 6.dp, y = (-4).dp)
-                    .size(22.dp)
+                    .size(26.dp)
                     .clip(CircleShape)
                     .background(
                         if (hintsLeft > 0) Color(0xFF32B450)
@@ -74,7 +84,7 @@ private fun HintButton(hintsLeft: Int, wordsTowardHint: Int, onHint: () -> Unit)
                 Text(
                     text = hintsLeft.toString(),
                     color = Color.White,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }

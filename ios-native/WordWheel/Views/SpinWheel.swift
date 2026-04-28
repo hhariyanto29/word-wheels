@@ -109,6 +109,7 @@ struct SpinWheelDialog: View {
             .padding(20)
             .frame(maxWidth: 360)
             .background(RoundedRectangle(cornerRadius: 20).fill(GameColors.completeBg))
+            .shadow(color: .black.opacity(0.5), radius: 18, x: 0, y: 8)
             .padding(.horizontal, 24)
         }
     }

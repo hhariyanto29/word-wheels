@@ -93,6 +93,10 @@ fun GameScreen() {
 
     var status by remember { mutableStateOf("") }
     var spinDialogOpen by remember { mutableStateOf(false) }
+    // Spin reward is captured when the wheel stops, but not credited
+    // to the player's coin count until the dialog dismisses — that
+    // way the TopBar's count-up animation plays visibly afterwards.
+    var pendingSpinReward by remember { mutableStateOf<SpinSector?>(null) }
     var pendingDifficultyTier by remember { mutableStateOf<com.wordwheel.game.Difficulty?>(null) }
     var pendingNextLevel by remember { mutableStateOf<Int?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
@@ -134,16 +138,24 @@ fun GameScreen() {
         // open (player tapped from the home buttons).
         if (spinDialogOpen) {
             SpinWheelDialog(
-                onSpinResult = { sector ->
-                    game.applySpinReward(
-                        today = today,
-                        coinsAdded = sector.coins,
-                        hintsAdded = sector.hints,
-                    )
-                    if (sector.coins > 0) sound?.play(Sfx.WordFound)
-                    else if (sector.hints > 0) sound?.play(Sfx.Hint)
+                // Stash the result; we don't credit the player's account
+                // until the dialog dismisses. That way the TopBar's
+                // count-up + pulse animation actually plays visibly,
+                // because before dismiss the dialog covers the bar.
+                onSpinResult = { sector -> pendingSpinReward = sector },
+                onDismiss = {
+                    pendingSpinReward?.let { sec ->
+                        game.applySpinReward(
+                            today = today,
+                            coinsAdded = sec.coins,
+                            hintsAdded = sec.hints,
+                        )
+                        if (sec.coins > 0) sound?.play(Sfx.WordFound)
+                        else if (sec.hints > 0) sound?.play(Sfx.Hint)
+                    }
+                    pendingSpinReward = null
+                    spinDialogOpen = false
                 },
-                onDismiss = { spinDialogOpen = false },
             )
         }
         if (settingsOpen) {
@@ -234,16 +246,24 @@ fun GameScreen() {
 
         if (spinDialogOpen) {
             SpinWheelDialog(
-                onSpinResult = { sector ->
-                    game.applySpinReward(
-                        today = today,
-                        coinsAdded = sector.coins,
-                        hintsAdded = sector.hints,
-                    )
-                    if (sector.coins > 0) sound?.play(Sfx.WordFound)
-                    else if (sector.hints > 0) sound?.play(Sfx.Hint)
+                // Stash the result; we don't credit the player's account
+                // until the dialog dismisses. That way the TopBar's
+                // count-up + pulse animation actually plays visibly,
+                // because before dismiss the dialog covers the bar.
+                onSpinResult = { sector -> pendingSpinReward = sector },
+                onDismiss = {
+                    pendingSpinReward?.let { sec ->
+                        game.applySpinReward(
+                            today = today,
+                            coinsAdded = sec.coins,
+                            hintsAdded = sec.hints,
+                        )
+                        if (sec.coins > 0) sound?.play(Sfx.WordFound)
+                        else if (sec.hints > 0) sound?.play(Sfx.Hint)
+                    }
+                    pendingSpinReward = null
+                    spinDialogOpen = false
                 },
-                onDismiss = { spinDialogOpen = false },
             )
         }
 
@@ -371,14 +391,10 @@ private fun PortraitContent(
             onHint = onHint,
         )
 
-        if (game.bonusFound.isNotEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "Bonus: ${game.bonusFound.joinToString(", ")}",
-                color = Color(0xA0FFFFFF),
-                fontSize = 12.sp,
-            )
-        }
+        // Always reserve the bonus row's height so finding a bonus word
+        // doesn't push the wheel up the screen mid-game.
+        Spacer(Modifier.height(4.dp))
+        BonusRow(found = game.bonusFound)
     }
 }
 
@@ -482,14 +498,10 @@ private fun LandscapeContent(
                     wordsTowardHint = game.wordsTowardHint,
                     onHint = onHint,
                 )
-                if (game.bonusFound.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "Bonus: ${game.bonusFound.joinToString(", ")}",
-                        color = Color(0xA0FFFFFF),
-                        fontSize = 12.sp,
-                    )
-                }
+                // Always reserve the bonus row's height so finding a
+                // bonus word doesn't reflow the wheel column.
+                Spacer(Modifier.height(4.dp))
+                BonusRow(found = game.bonusFound)
             }
         }
     }
@@ -497,44 +509,85 @@ private fun LandscapeContent(
 
 /* ---------- Small reusable bits ---------- */
 
+// Fixed-height wrappers — the wheel size below is computed from the
+// remaining vertical space, so any slot whose height varies frame-to-frame
+// would resize the wheel as the player types or as a status message
+// appears. Reserving a constant height per slot keeps the wheel rock-solid.
+private val WordPreviewSlotHeight = 40.dp
+private val StatusSlotHeight = 32.dp
+private val BonusRowSlotHeight = 22.dp
+
 @Composable
 private fun WordPreview(text: String) {
-    if (text.isNotEmpty()) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(18.dp))
-                .background(GameColors.WheelBg)
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-        ) {
-            Text(
-                text = text,
-                color = GameColors.LetterColor,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(WordPreviewSlotHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (text.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(GameColors.WheelBg)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    text = text,
+                    color = GameColors.LetterColor,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
-    } else {
-        Spacer(Modifier.height(36.dp))
     }
 }
 
 @Composable
 private fun StatusBubble(status: String, fontSp: Int) {
-    if (status.isNotEmpty()) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color(0x8C000000))
-                .padding(horizontal = 14.dp, vertical = 6.dp),
-        ) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(StatusSlotHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (status.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0x8C000000))
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = status,
+                    color = Color.White,
+                    fontSize = fontSp.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BonusRow(found: List<String>) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(BonusRowSlotHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (found.isNotEmpty()) {
+            // maxLines = 1 + ellipsis prevents the row from wrapping to a
+            // second line and getting clipped by our fixed height.
             Text(
-                text = status,
-                color = Color.White,
-                fontSize = fontSp.sp,
+                text = "Bonus: ${found.joinToString(", ")}",
+                color = Color(0xA0FFFFFF),
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 12.dp),
             )
         }
-    } else {
-        Spacer(Modifier.height(30.dp))
     }
 }
 

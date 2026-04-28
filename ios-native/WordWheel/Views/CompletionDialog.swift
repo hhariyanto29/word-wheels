@@ -35,6 +35,9 @@ struct CompletionDialog: View {
                         .fill(GameColors.completeBg)
                         .overlay(RoundedRectangle(cornerRadius: 16).stroke(GameColors.completeBorder, lineWidth: 2))
                 )
+                // Drop shadow lifts the dialog off the dim backdrop —
+                // matches Wordscapes / Words of Wonders presentation.
+                .shadow(color: .black.opacity(0.5), radius: 18, x: 0, y: 8)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
