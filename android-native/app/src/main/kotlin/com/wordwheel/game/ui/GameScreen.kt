@@ -93,6 +93,10 @@ fun GameScreen() {
 
     var status by remember { mutableStateOf("") }
     var spinDialogOpen by remember { mutableStateOf(false) }
+    // Spin reward is captured when the wheel stops, but not credited
+    // to the player's coin count until the dialog dismisses — that
+    // way the TopBar's count-up animation plays visibly afterwards.
+    var pendingSpinReward by remember { mutableStateOf<SpinSector?>(null) }
     var pendingDifficultyTier by remember { mutableStateOf<com.wordwheel.game.Difficulty?>(null) }
     var pendingNextLevel by remember { mutableStateOf<Int?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
@@ -134,16 +138,24 @@ fun GameScreen() {
         // open (player tapped from the home buttons).
         if (spinDialogOpen) {
             SpinWheelDialog(
-                onSpinResult = { sector ->
-                    game.applySpinReward(
-                        today = today,
-                        coinsAdded = sector.coins,
-                        hintsAdded = sector.hints,
-                    )
-                    if (sector.coins > 0) sound?.play(Sfx.WordFound)
-                    else if (sector.hints > 0) sound?.play(Sfx.Hint)
+                // Stash the result; we don't credit the player's account
+                // until the dialog dismisses. That way the TopBar's
+                // count-up + pulse animation actually plays visibly,
+                // because before dismiss the dialog covers the bar.
+                onSpinResult = { sector -> pendingSpinReward = sector },
+                onDismiss = {
+                    pendingSpinReward?.let { sec ->
+                        game.applySpinReward(
+                            today = today,
+                            coinsAdded = sec.coins,
+                            hintsAdded = sec.hints,
+                        )
+                        if (sec.coins > 0) sound?.play(Sfx.WordFound)
+                        else if (sec.hints > 0) sound?.play(Sfx.Hint)
+                    }
+                    pendingSpinReward = null
+                    spinDialogOpen = false
                 },
-                onDismiss = { spinDialogOpen = false },
             )
         }
         if (settingsOpen) {
@@ -234,16 +246,24 @@ fun GameScreen() {
 
         if (spinDialogOpen) {
             SpinWheelDialog(
-                onSpinResult = { sector ->
-                    game.applySpinReward(
-                        today = today,
-                        coinsAdded = sector.coins,
-                        hintsAdded = sector.hints,
-                    )
-                    if (sector.coins > 0) sound?.play(Sfx.WordFound)
-                    else if (sector.hints > 0) sound?.play(Sfx.Hint)
+                // Stash the result; we don't credit the player's account
+                // until the dialog dismisses. That way the TopBar's
+                // count-up + pulse animation actually plays visibly,
+                // because before dismiss the dialog covers the bar.
+                onSpinResult = { sector -> pendingSpinReward = sector },
+                onDismiss = {
+                    pendingSpinReward?.let { sec ->
+                        game.applySpinReward(
+                            today = today,
+                            coinsAdded = sec.coins,
+                            hintsAdded = sec.hints,
+                        )
+                        if (sec.coins > 0) sound?.play(Sfx.WordFound)
+                        else if (sec.hints > 0) sound?.play(Sfx.Hint)
+                    }
+                    pendingSpinReward = null
+                    spinDialogOpen = false
                 },
-                onDismiss = { spinDialogOpen = false },
             )
         }
 

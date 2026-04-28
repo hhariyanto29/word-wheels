@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,6 +45,7 @@ fun SettingsDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth(0.86f)
+                .shadow(elevation = 18.dp, shape = RoundedCornerShape(20.dp))
                 .clip(RoundedCornerShape(20.dp))
                 .background(GameColors.CompleteBg)
                 .padding(24.dp),

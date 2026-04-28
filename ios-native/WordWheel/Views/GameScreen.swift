@@ -15,6 +15,10 @@ struct GameScreen: View {
     @State private var status: String = ""
     @State private var spinDialogOpen = false
     @State private var settingsOpen = false
+    /// Spin reward is captured when the wheel stops, but not credited
+    /// to the coin counter until the dialog dismisses — that way the
+    /// TopBar's count-up + pulse animation plays visibly.
+    @State private var pendingSpinReward: SpinSector? = nil
     @State private var pendingDifficultyTier: Difficulty? = nil
     @State private var pendingNextLevel: Int? = nil
     /// App opens on the home screen; tapping LEVEL X switches to the puzzle.
@@ -74,16 +78,25 @@ struct GameScreen: View {
 
             if spinDialogOpen {
                 SpinWheelDialog(
-                    onSpinResult: { sec in
-                        game.applySpinReward(
-                            today: todayEpochDay,
-                            coinsAdded: sec.coins,
-                            hintsAdded: sec.hints,
-                        )
-                        if sec.coins > 0 { sound.play(.wordFound) }
-                        else if sec.hints > 0 { sound.play(.hint) }
+                    // Stash the result; we don't credit the player's
+                    // account until the dialog dismisses. That way the
+                    // TopBar's count-up + pulse animation actually
+                    // plays visibly, because before dismiss the dialog
+                    // covers the bar.
+                    onSpinResult: { sec in pendingSpinReward = sec },
+                    onDismiss: {
+                        if let sec = pendingSpinReward {
+                            game.applySpinReward(
+                                today: todayEpochDay,
+                                coinsAdded: sec.coins,
+                                hintsAdded: sec.hints,
+                            )
+                            if sec.coins > 0 { sound.play(.wordFound) }
+                            else if sec.hints > 0 { sound.play(.hint) }
+                        }
+                        pendingSpinReward = nil
+                        spinDialogOpen = false
                     },
-                    onDismiss: { spinDialogOpen = false },
                 )
             }
 

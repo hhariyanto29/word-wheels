@@ -45,6 +45,7 @@ struct DifficultyDialog: View {
                     .overlay(RoundedRectangle(cornerRadius: 20)
                         .stroke(tier.accent, lineWidth: 3))
             )
+            .shadow(color: .black.opacity(0.5), radius: 18, x: 0, y: 8)
             .padding(.horizontal, 24)
         }
     }

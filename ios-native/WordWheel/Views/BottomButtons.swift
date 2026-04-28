@@ -29,28 +29,37 @@ private struct HintButton: View {
     var body: some View {
         VStack(spacing: 6) {
             Button(action: onHint) {
+                // Outer 78pt frame is 14pt larger than the 64pt button
+                // so the count badge has room to sit at the corner
+                // WITHOUT overflowing the parent. The previous offset
+                // pushed the 22pt badge past the 64pt edge and got it
+                // clipped, hiding the digit on tighter layouts.
                 ZStack(alignment: .topTrailing) {
-                    Circle()
-                        .fill(hintsLeft > 0
-                              ? Color(hex: 0xFFFFB400)
-                              : Color(hex: 0xB4282828))
-                        .frame(width: 64, height: 64)
-                    Text("\u{1F4A1}")
-                        .font(.system(size: 28))
-                        .frame(width: 64, height: 64)
-                    // count badge
+                    ZStack {
+                        Circle()
+                            .fill(hintsLeft > 0
+                                  ? Color(hex: 0xFFFFB400)
+                                  : Color(hex: 0xB4282828))
+                            .frame(width: 64, height: 64)
+                        Text("\u{1F4A1}")
+                            .font(.system(size: 28))
+                    }
+                    .frame(width: 78, height: 78, alignment: .center)
+
+                    // Count badge — sized 26pt to fit two digits and
+                    // anchored inside the outer frame, never clipped.
                     ZStack {
                         Circle()
                             .fill(hintsLeft > 0
                                   ? Color(hex: 0xFF32B450)
                                   : Color(hex: 0xFF787878))
-                            .frame(width: 22, height: 22)
+                            .frame(width: 26, height: 26)
                         Text("\(hintsLeft)")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 13, weight: .bold))
                             .foregroundColor(.white)
                     }
-                    .offset(x: 6, y: -4)
                 }
+                .frame(width: 78, height: 78)
             }
             .buttonStyle(.plain)
 
