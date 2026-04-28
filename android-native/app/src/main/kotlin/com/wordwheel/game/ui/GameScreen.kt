@@ -371,14 +371,10 @@ private fun PortraitContent(
             onHint = onHint,
         )
 
-        if (game.bonusFound.isNotEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "Bonus: ${game.bonusFound.joinToString(", ")}",
-                color = Color(0xA0FFFFFF),
-                fontSize = 12.sp,
-            )
-        }
+        // Always reserve the bonus row's height so finding a bonus word
+        // doesn't push the wheel up the screen mid-game.
+        Spacer(Modifier.height(4.dp))
+        BonusRow(found = game.bonusFound)
     }
 }
 
@@ -482,14 +478,10 @@ private fun LandscapeContent(
                     wordsTowardHint = game.wordsTowardHint,
                     onHint = onHint,
                 )
-                if (game.bonusFound.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "Bonus: ${game.bonusFound.joinToString(", ")}",
-                        color = Color(0xA0FFFFFF),
-                        fontSize = 12.sp,
-                    )
-                }
+                // Always reserve the bonus row's height so finding a
+                // bonus word doesn't reflow the wheel column.
+                Spacer(Modifier.height(4.dp))
+                BonusRow(found = game.bonusFound)
             }
         }
     }
@@ -497,44 +489,85 @@ private fun LandscapeContent(
 
 /* ---------- Small reusable bits ---------- */
 
+// Fixed-height wrappers — the wheel size below is computed from the
+// remaining vertical space, so any slot whose height varies frame-to-frame
+// would resize the wheel as the player types or as a status message
+// appears. Reserving a constant height per slot keeps the wheel rock-solid.
+private val WordPreviewSlotHeight = 40.dp
+private val StatusSlotHeight = 32.dp
+private val BonusRowSlotHeight = 22.dp
+
 @Composable
 private fun WordPreview(text: String) {
-    if (text.isNotEmpty()) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(18.dp))
-                .background(GameColors.WheelBg)
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-        ) {
-            Text(
-                text = text,
-                color = GameColors.LetterColor,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-            )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(WordPreviewSlotHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (text.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(GameColors.WheelBg)
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+            ) {
+                Text(
+                    text = text,
+                    color = GameColors.LetterColor,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
-    } else {
-        Spacer(Modifier.height(36.dp))
     }
 }
 
 @Composable
 private fun StatusBubble(status: String, fontSp: Int) {
-    if (status.isNotEmpty()) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color(0x8C000000))
-                .padding(horizontal = 14.dp, vertical = 6.dp),
-        ) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(StatusSlotHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (status.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0x8C000000))
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            ) {
+                Text(
+                    text = status,
+                    color = Color.White,
+                    fontSize = fontSp.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BonusRow(found: List<String>) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(BonusRowSlotHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (found.isNotEmpty()) {
+            // maxLines = 1 + ellipsis prevents the row from wrapping to a
+            // second line and getting clipped by our fixed height.
             Text(
-                text = status,
-                color = Color.White,
-                fontSize = fontSp.sp,
+                text = "Bonus: ${found.joinToString(", ")}",
+                color = Color(0xA0FFFFFF),
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 12.dp),
             )
         }
-    } else {
-        Spacer(Modifier.height(30.dp))
     }
 }
 
