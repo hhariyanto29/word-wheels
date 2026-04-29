@@ -5,6 +5,27 @@ per language. Keep it short and punchy — this appears on the store page.
 
 ---
 
+## v1.7.3 (versionCode 11) — First public launch ⭐
+
+Use this for the **first production release**. Frames the launch
+honestly without overselling, and highlights the features that
+matter most to a brand-new player.
+
+```
+Welcome to Word Wheel!
+
+• 100 progressive levels, beginner → expert
+• Daily spin wheel for free coins and hints
+• Login streak counter
+• Six difficulty tiers as you climb
+• Hint system + auto-saving progress
+• Fully offline, no ads, no tracking, no account
+```
+
+Length: ~260 chars ✓
+
+---
+
 ## v1.5 (versionCode 6) — 100 levels
 
 ```
