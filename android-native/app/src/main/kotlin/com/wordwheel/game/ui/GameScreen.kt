@@ -11,6 +11,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -211,7 +212,6 @@ fun GameScreen() {
                 game = game,
                 level = game.levelNum,
                 streak = game.currentStreak,
-                spinAvailable = game.canSpinToday(today),
                 status = status,
                 spec = spec,
                 onSubmitWheel = {
@@ -221,7 +221,6 @@ fun GameScreen() {
                 },
                 onShuffle = { game.shuffleTiles() },
                 onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
-                onSpinClick = { spinDialogOpen = true },
                 onSettingsClick = { settingsOpen = true },
             )
         } else {
@@ -229,7 +228,6 @@ fun GameScreen() {
                 game = game,
                 level = game.levelNum,
                 streak = game.currentStreak,
-                spinAvailable = game.canSpinToday(today),
                 status = status,
                 spec = spec,
                 onSubmitWheel = {
@@ -239,8 +237,19 @@ fun GameScreen() {
                 },
                 onShuffle = { game.shuffleTiles() },
                 onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
-                onSpinClick = { spinDialogOpen = true },
                 onSettingsClick = { settingsOpen = true },
+            )
+        }
+
+        // Floating SPIN button. Only shown on the days the daily spin
+        // is available — keeps it out of the TopBar row entirely so
+        // long coin/word/level labels never get squished by it.
+        if (game.canSpinToday(today)) {
+            FloatingSpinButton(
+                onClick = { spinDialogOpen = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 24.dp),
             )
         }
 
@@ -316,13 +325,11 @@ private fun PortraitContent(
     game: GameState,
     level: Int,
     streak: Int,
-    spinAvailable: Boolean,
     status: String,
     spec: Spec,
     onSubmitWheel: () -> Unit,
     onShuffle: () -> Unit,
     onHint: () -> Unit,
-    onSpinClick: () -> Unit,
     onSettingsClick: () -> Unit,
 ) {
     Column(
@@ -344,10 +351,8 @@ private fun PortraitContent(
                     streak = streak,
                 )
             }
-            if (spinAvailable) {
-                Spacer(Modifier.width(8.dp))
-                SpinPill(onClick = onSpinClick)
-            }
+            // SPIN moved to a floating button so it never squishes the
+            // coin / word / level labels inside the TopBar row.
             Spacer(Modifier.width(8.dp))
             SettingsIconButton(onClick = onSettingsClick)
         }
@@ -405,13 +410,11 @@ private fun LandscapeContent(
     game: GameState,
     level: Int,
     streak: Int,
-    spinAvailable: Boolean,
     status: String,
     spec: Spec,
     onSubmitWheel: () -> Unit,
     onShuffle: () -> Unit,
     onHint: () -> Unit,
-    onSpinClick: () -> Unit,
     onSettingsClick: () -> Unit,
 ) {
     Column(
@@ -432,10 +435,7 @@ private fun LandscapeContent(
                     streak = streak,
                 )
             }
-            if (spinAvailable) {
-                Spacer(Modifier.width(8.dp))
-                SpinPill(onClick = onSpinClick)
-            }
+            // SPIN moved to a floating button — see PortraitContent.
             Spacer(Modifier.width(8.dp))
             SettingsIconButton(onClick = onSettingsClick)
         }
@@ -591,19 +591,43 @@ private fun BonusRow(found: List<String>) {
     }
 }
 
+/**
+ * Floating SPIN button. 64dp gold gradient circle anchored bottom-right
+ * of the play area — Material's FAB conventional spot. The little gift
+ * emoji + "SPIN" caption underneath keeps the affordance obvious.
+ *
+ * Only displayed on days when the daily spin is still available; the
+ * caller controls visibility.
+ */
 @Composable
-private fun SpinPill(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(22.dp))
-            .background(GameColors.GemGreen)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+private fun FloatingSpinButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Box(
+            modifier = Modifier
+                .shadow(elevation = 10.dp, shape = androidx.compose.foundation.shape.CircleShape)
+                .size(58.dp)
+                .clip(androidx.compose.foundation.shape.CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(GameColors.GemGreen, Color(0xFF1F8030)),
+                    ),
+                )
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "🎁",
+                fontSize = 30.sp,
+            )
+        }
+        Spacer(Modifier.height(4.dp))
         Text(
-            text = "🎁 SPIN",
+            text = "SPIN",
             color = Color.White,
-            fontSize = 14.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
         )
     }

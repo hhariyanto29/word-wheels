@@ -151,6 +151,18 @@ struct GameScreen: View {
                     portraitContent(spec: spec)
                 }
 
+                // Floating SPIN button — pinned bottom-right so it
+                // never squishes the coin / word / level labels in
+                // the TopBar row. Hidden on days when the daily spin
+                // is no longer available.
+                if game.canSpinToday(today: todayEpochDay) {
+                    floatingSpinButton
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 24)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity,
+                               alignment: .bottomTrailing)
+                }
+
                 if game.isComplete && pendingDifficultyTier == nil {
                     CompletionDialog(
                         isLastLevel: game.levelNum >= Level.totalLevels,
@@ -173,17 +185,8 @@ struct GameScreen: View {
                 TopBar(coins: game.coins, found: game.found.count,
                        total: game.answers.count, level: game.levelNum,
                        streak: game.currentStreak)
-                if game.canSpinToday(today: todayEpochDay) {
-                    Button(action: { spinDialogOpen = true }) {
-                        Text("🎁 SPIN")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12).padding(.vertical, 8)
-                            .background(RoundedRectangle(cornerRadius: 22)
-                                .fill(GameColors.gemGreen))
-                    }
-                    .buttonStyle(.plain)
-                }
+                // SPIN moved to a floating button so it never squishes
+                // the coin / word / level labels inside the TopBar row.
                 Button(action: { settingsOpen = true }) {
                     Text("⚙")
                         .font(.system(size: 22))
@@ -238,17 +241,8 @@ struct GameScreen: View {
                 TopBar(coins: game.coins, found: game.found.count,
                        total: game.answers.count, level: game.levelNum,
                        streak: game.currentStreak)
-                if game.canSpinToday(today: todayEpochDay) {
-                    Button(action: { spinDialogOpen = true }) {
-                        Text("🎁 SPIN")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12).padding(.vertical, 8)
-                            .background(RoundedRectangle(cornerRadius: 22)
-                                .fill(GameColors.gemGreen))
-                    }
-                    .buttonStyle(.plain)
-                }
+                // SPIN moved to a floating button so it never squishes
+                // the coin / word / level labels inside the TopBar row.
                 Button(action: { settingsOpen = true }) {
                     Text("⚙")
                         .font(.system(size: 22))
@@ -337,6 +331,34 @@ struct GameScreen: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: Self.statusSlotHeight)
+    }
+
+    /// Floating SPIN button. Gold-green gradient circle pinned to the
+    /// bottom-right of the play area — Material's FAB convention.
+    /// Visibility is gated by the caller (only on days the daily spin
+    /// is still available).
+    @ViewBuilder private var floatingSpinButton: some View {
+        Button(action: { spinDialogOpen = true }) {
+            VStack(spacing: 4) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient(
+                            colors: [GameColors.gemGreen,
+                                     Color(red: 0.12, green: 0.5, blue: 0.19)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing,
+                        ))
+                        .frame(width: 58, height: 58)
+                        .shadow(color: .black.opacity(0.5), radius: 6, x: 0, y: 4)
+                    Text("🎁")
+                        .font(.system(size: 30))
+                }
+                Text("SPIN")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.white)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder private var bonusRow: some View {

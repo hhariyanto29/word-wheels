@@ -29,37 +29,41 @@ private struct HintButton: View {
     var body: some View {
         VStack(spacing: 6) {
             Button(action: onHint) {
-                // Outer 78pt frame is 14pt larger than the 64pt button
-                // so the count badge has room to sit at the corner
-                // WITHOUT overflowing the parent. The previous offset
-                // pushed the 22pt badge past the 64pt edge and got it
-                // clipped, hiding the digit on tighter layouts.
+                // Outer 84pt frame puts the badge fully OUTSIDE the
+                // 64pt button corner so the digit isn't visually
+                // swallowed by the gold disc behind it. White ring +
+                // drop shadow on the badge make it pop independently.
                 ZStack(alignment: .topTrailing) {
+                    // Button anchored bottom-left of the outer frame
                     ZStack {
                         Circle()
                             .fill(hintsLeft > 0
                                   ? Color(hex: 0xFFFFB400)
                                   : Color(hex: 0xB4282828))
                             .frame(width: 64, height: 64)
+                            .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 3)
                         Text("\u{1F4A1}")
                             .font(.system(size: 28))
                     }
-                    .frame(width: 78, height: 78, alignment: .center)
+                    .frame(width: 84, height: 84, alignment: .bottomLeading)
 
-                    // Count badge — sized 26pt to fit two digits and
-                    // anchored inside the outer frame, never clipped.
+                    // Count badge — anchored top-right of the outer
+                    // 84pt frame. White ring keeps it readable
+                    // regardless of what colour is behind it.
                     ZStack {
                         Circle()
                             .fill(hintsLeft > 0
                                   ? Color(hex: 0xFF32B450)
                                   : Color(hex: 0xFF787878))
-                            .frame(width: 26, height: 26)
+                            .frame(width: 28, height: 28)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 2.5))
+                            .shadow(color: .black.opacity(0.4), radius: 3, x: 0, y: 2)
                         Text("\(hintsLeft)")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 14, weight: .heavy))
                             .foregroundColor(.white)
                     }
                 }
-                .frame(width: 78, height: 78)
+                .frame(width: 84, height: 84)
             }
             .buttonStyle(.plain)
 
