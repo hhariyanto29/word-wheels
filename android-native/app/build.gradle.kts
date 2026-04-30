@@ -32,15 +32,15 @@ val hasUploadKey =
     File(uploadKeystorePath).exists()
 
 android {
-    namespace = "com.wordwheel.game"
+    namespace = "com.wheelword.game"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.wordwheel.game"
+        applicationId = "com.wheelword.game"
         minSdk = 26
         targetSdk = 34
-        versionCode = 11
-        versionName = "1.7.3"
+        versionCode = 12
+        versionName = "1.7.4"
         vectorDrawables { useSupportLibrary = true }
     }
 

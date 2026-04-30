@@ -1,4 +1,4 @@
-package com.wordwheel.game.ui
+package com.wheelword.game.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -18,8 +18,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wordwheel.game.R
-import com.wordwheel.game.theme.GameColors
+import com.wheelword.game.R
+import com.wheelword.game.theme.GameColors
 
 /**
  * Pre-game landing screen. Shows the logo + a big "LEVEL X" button

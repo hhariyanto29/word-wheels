@@ -1,4 +1,4 @@
-package com.wordwheel.game.ui
+package com.wheelword.game.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -19,9 +19,9 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.toSize
-import com.wordwheel.game.audio.LocalSoundManager
-import com.wordwheel.game.audio.Sfx
-import com.wordwheel.game.theme.GameColors
+import com.wheelword.game.audio.LocalSoundManager
+import com.wheelword.game.audio.Sfx
+import com.wheelword.game.theme.GameColors
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin

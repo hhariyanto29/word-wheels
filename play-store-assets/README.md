@@ -27,7 +27,7 @@ in Play Console.
 ### Create the Play Console app
 - [ ] Play Console → All apps → **Create app**
   - App name: `Word Wheel`
-  - Package name: `com.wordwheel.game`
+  - Package name: `com.wheelword.game`
   - Default language: English (US)
   - App or game: **Game**
   - Free or paid: **Free** (can't change later)
@@ -75,7 +75,7 @@ in Play Console.
 
 ## Quick reference
 
-- Bundle ID: `com.wordwheel.game`
+- Bundle ID: `com.wheelword.game`
 - Min SDK: 26 (Android 8.0 Oreo)
 - Target SDK: 34 (Android 14)
 - Current version: 1.3 (versionCode 4)

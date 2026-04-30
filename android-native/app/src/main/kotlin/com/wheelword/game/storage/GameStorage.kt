@@ -1,10 +1,10 @@
-package com.wordwheel.game.storage
+package com.wheelword.game.storage
 
 import android.content.Context
 import android.util.Log
-import com.wordwheel.game.Dir
-import com.wordwheel.game.GameState
-import com.wordwheel.game.Level
+import com.wheelword.game.Dir
+import com.wheelword.game.GameState
+import com.wheelword.game.Level
 import org.json.JSONArray
 import org.json.JSONObject
 

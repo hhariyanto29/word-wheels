@@ -1,10 +1,10 @@
-package com.wordwheel.game.audio
+package com.wheelword.game.audio
 
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.SoundPool
 import androidx.compose.runtime.staticCompositionLocalOf
-import com.wordwheel.game.R
+import com.wheelword.game.R
 
 /**
  * Eight short SFX clips loaded into [SoundPool] for low-latency playback.

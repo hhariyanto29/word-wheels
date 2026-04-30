@@ -1,4 +1,4 @@
-package com.wordwheel.game
+package com.wheelword.game
 
 /**
  * Difficulty buckets shown to the player at level milestones (10, 20,

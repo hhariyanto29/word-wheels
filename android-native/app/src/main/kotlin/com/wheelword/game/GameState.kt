@@ -1,11 +1,11 @@
-package com.wordwheel.game
+package com.wheelword.game
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
-import com.wordwheel.game.storage.GameSnapshot
+import com.wheelword.game.storage.GameSnapshot
 
 /**
  * Game state for a single level. Uses Compose state holders so UI reacts

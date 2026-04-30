@@ -4,7 +4,7 @@ End-to-end walkthrough for submitting Word Wheel from "app entry created"
 to "Production release rolled out". Designed to be followed in one sitting.
 
 **Last updated:** 2026-04-30
-**App package name:** `com.wordwheel.game`
+**App package name:** `com.wheelword.game`
 **Target version:** 1.7.3 (versionCode 11)
 
 ---
@@ -16,7 +16,7 @@ Before opening Play Console, confirm all of this is in place:
 - [x] Production AAB available locally at `/tmp/aab-prod/app-release.aab` (4.2 MB)
 - [x] AAB signed with production key — SHA-1 `57:52:28:8B:DB:86:65:9A:71:F7:A5:17:53:6C:F2:9E:7F:25:5B:49`
 - [x] Upload key kept offline at `~/Documents/keystore-backup/wordwheel-upload.jks`
-- [x] App entry exists in Play Console (`com.wordwheel.game`)
+- [x] App entry exists in Play Console (`com.wheelword.game`)
 - [x] Google App Signing key generated (deployment cert downloaded)
 - [x] Upload key slot is EMPTY in Play Console — first upload will register ours
 - [x] Privacy policy live at `https://hhariyanto29.github.io/word-wheels/privacy-policy/`
@@ -289,7 +289,7 @@ While waiting:
 Listing goes live at:
 
 ```
-https://play.google.com/store/apps/details?id=com.wordwheel.game
+https://play.google.com/store/apps/details?id=com.wheelword.game
 ```
 
 Share the URL anywhere — social media, friends, your GitHub README.
@@ -350,7 +350,7 @@ should not happen.
 | Purpose | URL |
 |---|---|
 | Play Console | https://play.google.com/console |
-| Public listing (after approval) | https://play.google.com/store/apps/details?id=com.wordwheel.game |
+| Public listing (after approval) | https://play.google.com/store/apps/details?id=com.wheelword.game |
 | Privacy policy | https://hhariyanto29.github.io/word-wheels/privacy-policy/ |
 | Website | https://hhariyanto29.github.io/word-wheels/ |
 | Source repo | https://github.com/hhariyanto29/word-wheels |
