@@ -33,14 +33,14 @@ val hasUploadKey =
 
 android {
     namespace = "com.wheelword.game"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.wheelword.game"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 12
-        versionName = "1.7.4"
+        targetSdk = 35
+        versionCode = 13
+        versionName = "1.7.5"
         vectorDrawables { useSupportLibrary = true }
     }
 
