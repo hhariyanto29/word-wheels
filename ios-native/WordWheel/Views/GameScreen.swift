@@ -185,6 +185,20 @@ struct GameScreen: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
                            alignment: .bottomLeading)
 
+                // Status notification — pure overlay, NEVER part of any
+                // VStack flow. Positioned just above the wheel's top
+                // edge using a fixed offset from the bottom: wheel size
+                // + recent-attempts slot + bottom buttons + a small
+                // buffer. The grid no longer resizes when status pops.
+                statusOverlay(spec: spec)
+                    .padding(.bottom, spec.wheelSize
+                             + Self.recentAttemptsSlotHeight
+                             + 50      // BottomButtons height
+                             + 12)     // visual buffer
+                    .frame(maxWidth: .infinity, maxHeight: .infinity,
+                           alignment: .bottom)
+                    .zIndex(2)
+
                 if game.isComplete && pendingDifficultyTier == nil {
                     CompletionDialog(
                         isLastLevel: game.levelNum >= Level.totalLevels,
@@ -241,8 +255,9 @@ struct GameScreen: View {
             Spacer().frame(height: spec.gapAfterGrid)
 
             wordPreview
-            Spacer().frame(height: spec.gapAfterWord)
-            statusBubble(spec: spec)
+            // Status now renders as a ZStack overlay at puzzleBody level
+            // (see body) — never participates in this VStack flow, so
+            // the grid never resizes when the bubble appears.
 
             // Wheel is a hard-locked square — same size regardless of
             // level / grid size / current word length.
@@ -294,8 +309,6 @@ struct GameScreen: View {
                         .aspectRatio(CGFloat(game.level.cols) / CGFloat(game.level.rows), contentMode: .fit)
                     Spacer().frame(height: spec.gapAfterGrid)
                     wordPreview
-                    Spacer().frame(height: spec.gapAfterWord)
-                    statusBubble(spec: spec)
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity)
@@ -325,12 +338,14 @@ struct GameScreen: View {
     // varies frame-to-frame would resize the wheel as the player types
     // or as a status message appears. Reserving a constant height per
     // slot keeps the wheel rock-solid.
-    private static let wordPreviewSlotHeight: CGFloat = 36
-    // statusSlotHeight removed — status bubble now self-sizes (no
-    // reserved slot) so it can pop in/out without leaving an empty gap.
-    // Compact strip — half the original 32pt. Sitting under the wheel,
-    // not above it, so the player's eye stays where they last tapped.
-    private static let recentAttemptsSlotHeight: CGFloat = 24
+    private static let wordPreviewSlotHeight: CGFloat = 28
+    // statusSlotHeight removed — status now renders as an absolute
+    // ZStack overlay (see puzzleBody) so it never participates in any
+    // VStack flow. Grids and wheels stay the same size whether status
+    // is showing or not — that was the user's hard requirement after
+    // seeing the column reflow on real devices.
+    // Compact strip sits under the wheel.
+    private static let recentAttemptsSlotHeight: CGFloat = 22
     private static let recentAttemptsShown = 3
 
     @ViewBuilder private var wordPreview: some View {
@@ -347,19 +362,16 @@ struct GameScreen: View {
         .frame(height: Self.wordPreviewSlotHeight)
     }
 
-    /// No reserved slot any more — when status is empty the view tree
-    /// returns nothing and the column collapses. When set, renders a
-    /// small dark pill that visually separates from the wheel by its
-    /// own padding rather than a fixed-height container that could
-    /// read as overlap.
-    @ViewBuilder private func statusBubble(spec: Spec) -> some View {
+    /// Pure overlay status pill. Caller positions it via the parent
+    /// ZStack — this view never participates in any VStack flow, so
+    /// the grid stays the same size whether status is showing or not.
+    @ViewBuilder private func statusOverlay(spec: Spec) -> some View {
         if !status.isEmpty {
             Text(status)
                 .font(.system(size: CGFloat(spec.statusFontSp)))
                 .foregroundColor(.white)
                 .padding(.horizontal, 14).padding(.vertical, 6)
                 .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.8)))
-                .padding(.vertical, 4)
         }
     }
 
@@ -513,14 +525,20 @@ private struct Spec {
 private func spec(for size: CGSize, landscape: Bool) -> Spec {
     let short = min(size.width, size.height)
     let compact = size.height < 680 || (landscape && size.height < 420)
-    let wheelSide = min(size.width * 0.92, size.height * 0.42)
+    // Wheel scale bumped 0.92 -> 0.96 to honour the user's "wheel must
+    // stay big" mandate after real-device testing.
+    let wheelSide = min(size.width * 0.96, size.height * 0.44)
     return Spec(
-        outerH: short < 360 ? 8 : 12,
-        outerV: compact ? 10 : 18,
-        gapAfterTopBar: compact ? 8 : 14,
-        gapAfterGrid: compact ? 6 : 10,
-        gapAfterWord: compact ? 2 : 4,
-        gapBeforeButtons: compact ? 4 : 6,
+        // Padding / gap trimmed across the board. Real-device screenshots
+        // showed roughly ~80 pt of vertical space being eaten by margins
+        // alone; cutting them in half gives the grid the breathing room
+        // it needed without shrinking the wheel.
+        outerH: short < 360 ? 4 : 8,
+        outerV: compact ? 6 : 10,
+        gapAfterTopBar: compact ? 4 : 8,
+        gapAfterGrid: compact ? 2 : 4,
+        gapAfterWord: compact ? 0 : 2,
+        gapBeforeButtons: compact ? 2 : 4,
         statusFontSp: short < 360 ? 13 : 15,
         wheelSize: max(280, min(wheelSide, 480)),
     )

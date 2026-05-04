@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -42,13 +43,17 @@ private data class Spec(
 private fun specFor(width: Dp, height: Dp, landscape: Boolean): Spec {
     val short = minOf(width, height)
     val compact = height < 680.dp || (landscape && height < 420.dp)
+    // Trimmed across the board: real-device feedback was that the
+    // grid + wheel were losing usable area to outer / between-element
+    // padding. Floors stay where they are (8 / 4 on small phones)
+    // but the regular sizes are tighter than the previous defaults.
     return Spec(
-        outerH = if (short < 360.dp) 8.dp else 12.dp,
-        outerV = if (compact) 10.dp else 18.dp,
-        gapAfterTopBar = if (compact) 8.dp else 14.dp,
-        gapAfterGrid = if (compact) 6.dp else 10.dp,
-        gapAfterWord = if (compact) 2.dp else 4.dp,
-        gapBeforeButtons = if (compact) 4.dp else 6.dp,
+        outerH = if (short < 360.dp) 4.dp else 8.dp,
+        outerV = if (compact) 6.dp else 10.dp,
+        gapAfterTopBar = if (compact) 4.dp else 8.dp,
+        gapAfterGrid = if (compact) 2.dp else 4.dp,
+        gapAfterWord = if (compact) 0.dp else 2.dp,
+        gapBeforeButtons = if (compact) 2.dp else 4.dp,
         statusFontSp = if (short < 360.dp) 13 else 15,
     )
 }
@@ -376,10 +381,9 @@ private fun PortraitContent(
     ) {
         // Wheel size is locked to a screen-width fraction — *not* derived
         // from "leftover" Column space — so it never shrinks when the
-        // grid grows for harder levels. The minOf vs height keeps it
-        // sane on landscape-ish or short windows; the coerceIn ensures
-        // a usable floor on tiny phones and a sensible ceiling on tablets.
-        val wheelSize = minOf(maxWidth * 0.92f, maxHeight * 0.42f)
+        // grid grows for harder levels. 0.96 (vs the previous 0.92) is
+        // the user's "harus stay besar" mandate translated to numbers.
+        val wheelSize = minOf(maxWidth * 0.96f, maxHeight * 0.44f)
             .coerceIn(280.dp, 480.dp)
 
         Column(
@@ -399,18 +403,12 @@ private fun PortraitContent(
                         streak = streak,
                     )
                 }
-                // Help moved to a floating button bottom-left (see below).
-                // SPIN is also a floating button. Keeping the TopBar row
-                // to {labels + settings} only stops the labels from getting
-                // squeezed into vertical glyph stacks.
                 Spacer(Modifier.width(8.dp))
                 SettingsIconButton(onClick = onSettingsClick)
             }
             Spacer(Modifier.height(spec.gapAfterTopBar))
 
             // Grid takes the leftover vertical space ABOVE the wheel.
-            // Capped maxHeight removed — the wheel is now fixed, so the
-            // grid no longer competes for it.
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -421,14 +419,11 @@ private fun PortraitContent(
                     level = game.level,
                     visible = game.visibleLettersMap(),
                     usedCells = game.usedCells,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
             WordPreview(text = game.currentWord())
-            StatusBubble(status = status, fontSp = spec.statusFontSp)
 
             LetterWheel(
                 tiles = game.tiles,
@@ -438,9 +433,7 @@ private fun PortraitContent(
                 modifier = Modifier.size(wheelSize),
             )
 
-            // Word history sits BELOW the wheel as a compact strip — out
-            // of the wheel's way visually, easy to glance at after a
-            // submit, doesn't reserve screen real estate above the wheel.
+            // Word history sits BELOW the wheel as a compact strip.
             RecentAttemptsRow(attempts = game.recentAttempts)
 
             BottomButtons(
@@ -449,6 +442,24 @@ private fun PortraitContent(
                 onHint = onHint,
             )
         }
+
+        // Status notification — pure overlay, NEVER part of the column
+        // flow. The previous "in-flow" placement made the grid resize
+        // every time a status pill popped in (real-device feedback flagged
+        // this as the most jarring bug). Now it floats above the wheel
+        // top edge at a fixed offset from the bottom, so the grid stays
+        // rock-steady regardless of whether status is showing.
+        StatusOverlay(
+            status = status,
+            fontSp = spec.statusFontSp,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                // Stack from the bottom: BottomButtons (~50) + 4 + recent (22)
+                // + wheel + 8 buffer. Keeps status visually just above the
+                // wheel's top edge regardless of grid height above.
+                .padding(bottom = wheelSize + RecentAttemptsSlotHeight + 50.dp + 8.dp)
+                .zIndex(2f),
+        )
     }
 }
 
@@ -466,11 +477,14 @@ private fun LandscapeContent(
     onHint: () -> Unit,
     onSettingsClick: () -> Unit,
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = spec.outerH, vertical = spec.outerV),
     ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+        ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -512,8 +526,8 @@ private fun LandscapeContent(
                 )
                 Spacer(Modifier.height(spec.gapAfterGrid))
                 WordPreview(text = game.currentWord())
-                Spacer(Modifier.height(spec.gapAfterWord))
-                StatusBubble(status = status, fontSp = spec.statusFontSp)
+                // Status now renders as overlay at the LandscapeContent
+                // outer Box level — see end of function.
             }
 
             Spacer(Modifier.width(16.dp))
@@ -552,6 +566,18 @@ private fun LandscapeContent(
                 )
             }
         }
+        }  // end Column
+
+        // Status overlay — landscape positions it center-screen between
+        // the grid (left) and wheel (right) columns. Same principle as
+        // portrait: never affects layout flow.
+        StatusOverlay(
+            status = status,
+            fontSp = spec.statusFontSp,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .zIndex(2f),
+        )
     }
 }
 
@@ -561,11 +587,12 @@ private fun LandscapeContent(
 // remaining vertical space, so any slot whose height varies frame-to-frame
 // would resize the wheel as the player types or as a status message
 // appears. Reserving a constant height per slot keeps the wheel rock-solid.
-private val WordPreviewSlotHeight = 36.dp
-private val StatusSlotHeight = 26.dp
-// Compact strip — half the original 32dp. Sitting under the wheel,
-// not above it, so the player's eye stays where they last tapped.
-private val RecentAttemptsSlotHeight = 24.dp
+private val WordPreviewSlotHeight = 28.dp
+// StatusSlotHeight removed — status now renders as an absolute overlay
+// (see PortraitContent / LandscapeContent), so it never reserves space
+// in the column and never resizes the grid.
+// Compact strip — sits under the wheel, not above it.
+private val RecentAttemptsSlotHeight = 22.dp
 private const val RECENT_ATTEMPTS_SHOWN = 3
 
 @Composable
@@ -595,15 +622,18 @@ private fun WordPreview(text: String) {
 }
 
 @Composable
-private fun StatusBubble(status: String, fontSp: Int) {
-    // No reserved slot any more — when status is empty, returns nothing
-    // and the column collapses. When set, renders a small dark pill
-    // that visually separates from the wheel by its own padding rather
-    // than a fixed-height container that could read as overlap.
+private fun StatusOverlay(
+    status: String,
+    fontSp: Int,
+    modifier: Modifier = Modifier,
+) {
+    // Pure overlay: returns nothing when status is empty, and the caller
+    // is responsible for absolute positioning via [modifier]. This pill
+    // never participates in any column layout — that's the whole point;
+    // grids and wheels nearby must not move when it appears or disappears.
     if (status.isEmpty()) return
     Box(
-        modifier = Modifier
-            .padding(top = 4.dp, bottom = 4.dp)
+        modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(Color(0xCC000000))
             .padding(horizontal = 14.dp, vertical = 6.dp),

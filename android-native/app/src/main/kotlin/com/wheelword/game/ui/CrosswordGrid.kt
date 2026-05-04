@@ -29,8 +29,8 @@ fun CrosswordGrid(
     modifier: Modifier = Modifier,
     maxHeight: Dp = Dp.Unspecified,
 ) {
-    val gap = 3.dp
-    val padding = 12.dp
+    val gap = 2.dp
+    val padding = 6.dp
 
     BoxWithConstraints(modifier = modifier) {
         val widthBudget = maxWidth - padding * 2 - gap * (level.cols - 1)
