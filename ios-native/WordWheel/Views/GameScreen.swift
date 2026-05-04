@@ -15,6 +15,7 @@ struct GameScreen: View {
     @State private var status: String = ""
     @State private var spinDialogOpen = false
     @State private var settingsOpen = false
+    @State private var coinInfoOpen = false
     /// Help dialog state. Initialised from `storage.seenHelp` in `init`
     /// so first-time players see the modal automatically.
     @State private var helpOpen: Bool
@@ -106,6 +107,11 @@ struct GameScreen: View {
 
             if settingsOpen {
                 SettingsDialog(sound: sound, onDismiss: { settingsOpen = false })
+            }
+
+            if coinInfoOpen {
+                CoinInfoDialog(coins: game.coins,
+                               onDismiss: { coinInfoOpen = false })
             }
 
             if helpOpen {
@@ -229,7 +235,8 @@ struct GameScreen: View {
             HStack(spacing: 8) {
                 TopBar(coins: game.coins, found: game.found.count,
                        total: game.answers.count, level: game.levelNum,
-                       streak: game.currentStreak)
+                       streak: game.currentStreak,
+                       onCoinClick: { coinInfoOpen = true })
                 // Help + SPIN moved to floating buttons (see ZStack
                 // overlay). Keeping the TopBar to {labels + settings}
                 // only stops the labels from getting squeezed.
@@ -285,7 +292,8 @@ struct GameScreen: View {
             HStack(spacing: 8) {
                 TopBar(coins: game.coins, found: game.found.count,
                        total: game.answers.count, level: game.levelNum,
-                       streak: game.currentStreak)
+                       streak: game.currentStreak,
+                       onCoinClick: { coinInfoOpen = true })
                 // Help + SPIN moved to floating buttons (see ZStack
                 // overlay). Keeping the TopBar to {labels + settings}
                 // only stops the labels from getting squeezed.

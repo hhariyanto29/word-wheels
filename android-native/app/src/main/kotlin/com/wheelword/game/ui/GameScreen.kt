@@ -104,6 +104,7 @@ fun GameScreen() {
     var pendingDifficultyTier by remember { mutableStateOf<com.wheelword.game.Difficulty?>(null) }
     var pendingNextLevel by remember { mutableStateOf<Int?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
+    var coinInfoOpen by remember { mutableStateOf(false) }
     // Help dialog: open by default for first-time players (storage.seenHelp
     // == false). Once the player dismisses, we flip the flag persistently
     // so it doesn't pop again on subsequent launches.
@@ -245,6 +246,7 @@ fun GameScreen() {
                     },
                     onShuffle = { game.shuffleTiles() },
                     onSettingsClick = { settingsOpen = true },
+                    onCoinClick = { coinInfoOpen = true },
                 )
             } else {
                 PortraitContent(
@@ -260,6 +262,7 @@ fun GameScreen() {
                     },
                     onShuffle = { game.shuffleTiles() },
                     onSettingsClick = { settingsOpen = true },
+                    onCoinClick = { coinInfoOpen = true },
                 )
             }
 
@@ -369,6 +372,13 @@ fun GameScreen() {
                 },
             )
         }
+
+        if (coinInfoOpen) {
+            CoinInfoDialog(
+                coins = game.coins,
+                onDismiss = { coinInfoOpen = false },
+            )
+        }
     }
 }
 
@@ -384,6 +394,7 @@ private fun PortraitContent(
     onSubmitWheel: () -> Unit,
     onShuffle: () -> Unit,
     onSettingsClick: () -> Unit,
+    onCoinClick: () -> Unit,
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -416,6 +427,7 @@ private fun PortraitContent(
                         total = game.answers.size,
                         level = level,
                         streak = streak,
+                        onCoinClick = onCoinClick,
                     )
                 }
                 Spacer(Modifier.width(8.dp))
@@ -489,6 +501,7 @@ private fun LandscapeContent(
     onSubmitWheel: () -> Unit,
     onShuffle: () -> Unit,
     onSettingsClick: () -> Unit,
+    onCoinClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -509,6 +522,7 @@ private fun LandscapeContent(
                     total = game.answers.size,
                     level = level,
                     streak = streak,
+                    onCoinClick = onCoinClick,
                 )
             }
             // Help + SPIN moved to floating buttons — see PortraitContent.

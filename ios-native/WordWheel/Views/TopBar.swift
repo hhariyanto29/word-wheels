@@ -31,6 +31,10 @@ struct TopBar: View {
     let total: Int
     let level: Int
     var streak: Int = 0
+    /// Optional callback fired when the coin icon + count area is
+    /// tapped. Used to surface the "you can buy hints with points"
+    /// info dialog.
+    var onCoinClick: (() -> Void)? = nil
 
     /// The displayed (animated) coin count. Tracks `coins` lazily so a
     /// jump from 200→225 visibly counts up instead of snapping.
@@ -42,14 +46,22 @@ struct TopBar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            CoinIcon(size: 24)
-                .scaleEffect(pulseActive ? 1.25 : 1.0)
-                .animation(.easeOut(duration: 0.22), value: pulseActive)
-            Spacer().frame(width: 8)
-            Text("\(displayedCoins)")
-                .font(.system(size: 17, weight: .bold))
-                .foregroundColor(.white)
-                .contentTransition(.numericText())
+            // Coin icon + count is tappable as one unit so the player
+            // gets a comfortable hit target. Tapping opens an info
+            // dialog explaining how points are earned and that hints
+            // can be bought when free hints run out.
+            HStack(spacing: 0) {
+                CoinIcon(size: 24)
+                    .scaleEffect(pulseActive ? 1.25 : 1.0)
+                    .animation(.easeOut(duration: 0.22), value: pulseActive)
+                Spacer().frame(width: 8)
+                Text("\(displayedCoins)")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
+                    .contentTransition(.numericText())
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onCoinClick?() }
 
             Spacer().frame(width: 14)
 

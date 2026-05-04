@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,7 +60,14 @@ private fun CoinIcon(modifier: Modifier = Modifier, size: Int = 24) {
 }
 
 @Composable
-fun TopBar(coins: Int, found: Int, total: Int, level: Int, streak: Int = 0) {
+fun TopBar(
+    coins: Int,
+    found: Int,
+    total: Int,
+    level: Int,
+    streak: Int = 0,
+    onCoinClick: (() -> Unit)? = null,
+) {
     // Tween-animate the displayed coin count when it changes — the spin
     // reward (and word-completion +2) ticks up smoothly instead of
     // snapping. ~600ms is short enough to feel responsive but long
@@ -95,14 +103,27 @@ fun TopBar(coins: Int, found: Int, total: Int, level: Int, streak: Int = 0) {
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CoinIcon(modifier = Modifier.scale(pulse), size = 22)
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = displayedCoins.toString(),
-            color = Color.White,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Bold,
-        )
+        // Coin icon + count is tappable as one unit so the player has
+        // a comfortable hit target. Tapping opens an info dialog that
+        // explains how points are earned and that hints can be bought
+        // for HINT_COIN_COST when free hints run out.
+        Row(
+            modifier = Modifier.run {
+                if (onCoinClick != null) {
+                    clip(RoundedCornerShape(14.dp)).clickable(onClick = onCoinClick)
+                } else this
+            }.padding(horizontal = 2.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CoinIcon(modifier = Modifier.scale(pulse), size = 22)
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = displayedCoins.toString(),
+                color = Color.White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
 
         Spacer(Modifier.width(14.dp))
 
