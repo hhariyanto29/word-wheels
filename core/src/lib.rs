@@ -1,8 +1,26 @@
 use eframe::egui;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::f32::consts::{FRAC_PI_2, TAU};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AttemptResult {
+    Grid,
+    Bonus,
+    Duplicate,
+    Invalid,
+    TooShort,
+}
+
+#[derive(Debug, Clone)]
+struct Attempt {
+    word: String,
+    result: AttemptResult,
+}
+
+const RECENT_ATTEMPTS_CAP: usize = 5;
+const RECENT_ATTEMPTS_SHOWN: usize = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 enum Dir {
@@ -249,6 +267,8 @@ struct GameState {
     bonus_found: HashSet<String>,
     hints_left: u32,
     words_toward_hint: u32,
+    /// Newest attempt at the front. Capped at `RECENT_ATTEMPTS_CAP`.
+    recent_attempts: VecDeque<Attempt>,
 }
 
 impl GameState {
@@ -276,6 +296,19 @@ impl GameState {
             bonus_found: HashSet::new(),
             hints_left: 5,
             words_toward_hint: 0,
+            recent_attempts: VecDeque::with_capacity(RECENT_ATTEMPTS_CAP),
+        }
+    }
+
+    fn record_attempt(&mut self, word: String, result: AttemptResult) {
+        // Skip empty/sub-2-letter prefixes — they're noise the player
+        // didn't intend to "try".
+        if word.len() < 2 {
+            return;
+        }
+        self.recent_attempts.push_front(Attempt { word, result });
+        while self.recent_attempts.len() > RECENT_ATTEMPTS_CAP {
+            self.recent_attempts.pop_back();
         }
     }
 
@@ -323,6 +356,7 @@ impl GameState {
     fn try_submit(&mut self) -> String {
         let guess = self.current_word();
         if guess.len() < 2 {
+            self.record_attempt(guess, AttemptResult::TooShort);
             return "Make a longer word.".to_string();
         }
 
@@ -338,9 +372,12 @@ impl GameState {
                     ""
                 };
                 self.clear_selection();
-                return format!("Found: {} (+2 pts){}", guess, hint_msg);
+                let msg = format!("Found: {} (+2 pts){}", guess, hint_msg);
+                self.record_attempt(guess, AttemptResult::Grid);
+                return msg;
             } else {
                 self.clear_selection();
+                self.record_attempt(guess, AttemptResult::Duplicate);
                 return "Already found.".to_string();
             }
         }
@@ -357,14 +394,18 @@ impl GameState {
                     ""
                 };
                 self.clear_selection();
-                return format!("Bonus: {} (+2 pts){}", guess, hint_msg);
+                let msg = format!("Bonus: {} (+2 pts){}", guess, hint_msg);
+                self.record_attempt(guess, AttemptResult::Bonus);
+                return msg;
             } else {
                 self.clear_selection();
+                self.record_attempt(guess, AttemptResult::Duplicate);
                 return "Bonus already counted.".to_string();
             }
         }
 
         self.clear_selection();
+        self.record_attempt(guess, AttemptResult::Invalid);
         "No match.".to_string()
     }
 
@@ -732,10 +773,67 @@ impl eframe::App for GameApp {
                     cursor_y += 32.0;
                 }
 
+                // --- RECENT ATTEMPTS ---
+                if !self.game.recent_attempts.is_empty() {
+                    let chip_h = 26.0;
+                    let gap = 6.0;
+                    let pad_h = 10.0;
+                    let char_w = 8.0;
+                    let chips: Vec<(&Attempt, f32)> = self
+                        .game
+                        .recent_attempts
+                        .iter()
+                        .take(RECENT_ATTEMPTS_SHOWN)
+                        .map(|a| (a, a.word.len() as f32 * char_w + 2.0 * pad_h))
+                        .collect();
+                    let total_w: f32 = chips.iter().map(|(_, w)| *w).sum::<f32>()
+                        + gap * (chips.len() as f32 - 1.0).max(0.0);
+                    let mut x = content_rect.center().x - total_w / 2.0;
+                    let y = cursor_y + chip_h / 2.0;
+                    for (a, w) in &chips {
+                        let rect = egui::Rect::from_center_size(
+                            egui::pos2(x + w / 2.0, y),
+                            egui::vec2(*w, chip_h),
+                        );
+                        let (bg, fg) = match a.result {
+                            AttemptResult::Grid => (
+                                egui::Color32::from_rgb(50, 200, 80),
+                                egui::Color32::WHITE,
+                            ),
+                            AttemptResult::Bonus => (
+                                egui::Color32::from_rgb(255, 220, 80),
+                                egui::Color32::from_rgb(30, 30, 30),
+                            ),
+                            AttemptResult::Duplicate => (
+                                egui::Color32::from_rgb(80, 160, 230),
+                                egui::Color32::WHITE,
+                            ),
+                            AttemptResult::Invalid => (
+                                egui::Color32::from_rgba_premultiplied(0, 0, 0, 90),
+                                egui::Color32::from_rgba_premultiplied(255, 255, 255, 200),
+                            ),
+                            AttemptResult::TooShort => (
+                                egui::Color32::from_rgba_premultiplied(0, 0, 0, 50),
+                                egui::Color32::from_rgba_premultiplied(255, 255, 255, 150),
+                            ),
+                        };
+                        painter.rect_filled(rect, 10.0, bg);
+                        painter.text(
+                            rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            &a.word,
+                            egui::FontId::proportional(13.0),
+                            fg,
+                        );
+                        x += w + gap;
+                    }
+                    cursor_y += chip_h + 6.0;
+                }
+
                 // --- LETTER WHEEL AREA ---
                 // Position wheel in lower portion of screen
                 let available_h = content_rect.max.y - cursor_y;
-                let wheel_diameter = available_h.min(content_rect.width()).min(320.0).max(200.0);
+                let wheel_diameter = available_h.min(content_rect.width()).min(560.0).max(200.0);
                 let wheel_radius = wheel_diameter / 2.0;
                 let wheel_center = egui::pos2(
                     content_rect.center().x,
@@ -753,8 +851,8 @@ impl eframe::App for GameApp {
 
                 // Tile positions
                 let n = self.game.tiles.len().max(1);
-                let tile_orbit = wheel_radius * 0.6;
-                let tile_r = wheel_radius * 0.17;
+                let tile_orbit = wheel_radius * 0.62;
+                let tile_r = wheel_radius * 0.20;
                 let mut positions: Vec<egui::Pos2> = Vec::with_capacity(n);
                 for i in 0..n {
                     let t = i as f32 / n as f32;

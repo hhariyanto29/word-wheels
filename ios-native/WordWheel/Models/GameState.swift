@@ -1,5 +1,21 @@
 import Foundation
 
+enum AttemptResult { case grid, bonus, duplicate, invalid, tooShort }
+
+struct Attempt: Identifiable {
+    let id = UUID()
+    let word: String
+    let result: AttemptResult
+}
+
+private let recentAttemptsCap = 5
+
+/// Cap on how many *dictionary-only* bonus words earn coins per level.
+/// Curated `bonusWords` from level data are always rewarded; this only
+/// limits the open-ended dictionary fallback to keep hint earn rate
+/// tractable. 50 is a starting value — tune from playtesting.
+private let dictBonusCoinCap = 50
+
 /// Single-level game state. An `ObservableObject` so SwiftUI views update
 /// automatically when `@Published` properties change — analogous to Compose's
 /// `mutableStateOf` on the Kotlin side.
@@ -23,6 +39,8 @@ final class GameState: ObservableObject {
     @Published var found: [String] = []
     @Published var bonusFound: [String] = []
     @Published var revealed: [Cell: Character] = [:]
+    /// Newest attempt first. Capped at `recentAttemptsCap`.
+    @Published var recentAttempts: [Attempt] = []
 
     @Published private(set) var tiles: [Character]
     @Published var selection: [Int] = []
@@ -30,6 +48,9 @@ final class GameState: ObservableObject {
     @Published var coins: Int
     @Published var hintsLeft: Int = 5
     @Published var wordsTowardHint: Int = 0
+    /// Counter of dictionary-only bonus words that earned coins this
+    /// level. Reset on level transition; capped at `dictBonusCoinCap`.
+    @Published private(set) var dictBonusEarned: Int = 0
 
     // ── Meta-progression (streak + daily spin) ──────────────────────
     @Published var lastPlayedEpochDay: Int = 0
@@ -88,7 +109,10 @@ final class GameState: ObservableObject {
     /// Returns a status message for the UI after a submit attempt.
     func trySubmit() -> String {
         let guess = currentWord()
-        if guess.count < 2 { return "Make a longer word." }
+        if guess.count < 2 {
+            recordAttempt(word: guess, result: .tooShort)
+            return "Make a longer word."
+        }
 
         if answers.contains(guess) {
             if !found.contains(guess) {
@@ -96,10 +120,12 @@ final class GameState: ObservableObject {
                 coins += 2
                 let hintMsg = awardProgress()
                 clearSelection()
+                recordAttempt(word: guess, result: .grid)
                 persist()
                 return "Found: \(guess) (+2 pts)\(hintMsg)"
             } else {
                 clearSelection()
+                recordAttempt(word: guess, result: .duplicate)
                 return "Already found."
             }
         }
@@ -110,16 +136,58 @@ final class GameState: ObservableObject {
                 coins += 2
                 let hintMsg = awardProgress()
                 clearSelection()
+                recordAttempt(word: guess, result: .bonus)
                 persist()
                 return "Bonus: \(guess) (+2 pts)\(hintMsg)"
             } else {
                 clearSelection()
+                recordAttempt(word: guess, result: .duplicate)
+                return "Bonus already counted."
+            }
+        }
+
+        // Dictionary fallback (Option C hybrid). The wheel selection
+        // mechanism guarantees the word is spellable from the wheel,
+        // so we only need a dictionary membership check. First N earn
+        // coins/hint progress; the rest are recognised but gated to
+        // preserve hint pacing.
+        if WordDictionary.contains(guess) {
+            if !bonusFound.contains(guess) {
+                bonusFound.append(guess)
+                if dictBonusEarned < dictBonusCoinCap {
+                    coins += 2
+                    dictBonusEarned += 1
+                    let hintMsg = awardProgress()
+                    clearSelection()
+                    recordAttempt(word: guess, result: .bonus)
+                    persist()
+                    return "Bonus: \(guess) (+2 pts)\(hintMsg)"
+                } else {
+                    clearSelection()
+                    recordAttempt(word: guess, result: .bonus)
+                    persist()
+                    return "Bonus: \(guess) (cap reached)"
+                }
+            } else {
+                clearSelection()
+                recordAttempt(word: guess, result: .duplicate)
                 return "Bonus already counted."
             }
         }
 
         clearSelection()
+        recordAttempt(word: guess, result: .invalid)
         return "No match."
+    }
+
+    private func recordAttempt(word: String, result: AttemptResult) {
+        // Skip empty/sub-2-letter prefixes — they're noise the player
+        // didn't intend to "try".
+        guard word.count >= 2 else { return }
+        recentAttempts.insert(Attempt(word: word, result: result), at: 0)
+        if recentAttempts.count > recentAttemptsCap {
+            recentAttempts.removeLast(recentAttempts.count - recentAttemptsCap)
+        }
     }
 
     private func awardProgress() -> String {
@@ -144,6 +212,8 @@ final class GameState: ObservableObject {
         self.found = []
         self.bonusFound = []
         self.revealed = [:]
+        self.recentAttempts = []
+        self.dictBonusEarned = 0
         self.coins = carriedCoins
         self.hintsLeft = carriedHints
         self.wordsTowardHint = carriedWordsTowardHint

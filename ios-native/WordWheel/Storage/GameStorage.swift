@@ -80,4 +80,10 @@ final class GameStorage {
     func clear() {
         defaults.removeObject(forKey: key)
     }
+
+    /// True once the player has dismissed the How-to-Play dialog.
+    var seenHelp: Bool {
+        get { defaults.bool(forKey: "seen_help") }
+        set { defaults.set(newValue, forKey: "seen_help") }
+    }
 }

@@ -23,9 +23,9 @@ struct LetterWheel: View {
         GeometryReader { geo in
             let size = geo.size
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            let radius = min(size.width, size.height) / 2 * 0.95
-            let tileOrbit = radius * 0.6
-            let tileR = radius * 0.17
+            let radius = min(size.width, size.height) / 2 * 0.99
+            let tileOrbit = radius * 0.62
+            let tileR = radius * 0.20
             let shuffleR = size.width * 0.09
 
             let positions: [CGPoint] = (0..<tiles.count).map { i in

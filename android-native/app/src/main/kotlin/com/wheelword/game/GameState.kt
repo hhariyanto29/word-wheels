@@ -7,6 +7,24 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.setValue
 import com.wheelword.game.storage.GameSnapshot
 
+enum class AttemptResult { GRID, BONUS, DUPLICATE, INVALID, TOO_SHORT }
+
+data class Attempt(val word: String, val result: AttemptResult)
+
+private const val RECENT_ATTEMPTS_CAP = 5
+
+/**
+ * Cap on how many *dictionary-only* bonus words earn coins per level.
+ * Curated `bonusWords` from level data are always rewarded; this only
+ * limits the open-ended dictionary fallback to keep hint earn rate
+ * tractable.
+ *
+ * 50 is a starting value. Tune from playtesting: too low and engaged
+ * players hit the cap mid-level and feel cheated; too high and hints
+ * become free.
+ */
+private const val DICT_BONUS_COIN_CAP = 50
+
 /**
  * Game state for a single level. Uses Compose state holders so UI reacts
  * automatically when state changes.
@@ -39,6 +57,10 @@ class GameState(
     val found = mutableStateListOf<String>()
     val bonusFound = mutableStateListOf<String>()
     val revealed = mutableStateMapOf<Pair<Int, Int>, Char>()
+    // Newest attempt first. Capped at RECENT_ATTEMPTS_CAP — only the
+    // top few are rendered, but a small buffer leaves room to show more
+    // if the design ever changes.
+    val recentAttempts = mutableStateListOf<Attempt>()
 
     var tiles by mutableStateOf(level.letters.toList())
         private set
@@ -47,6 +69,11 @@ class GameState(
     var coins by mutableStateOf(initialCoins)
     var hintsLeft by mutableStateOf(initialHints)
     var wordsTowardHint by mutableStateOf(initialWordsTowardHint)
+    /// Counter of dictionary-only bonus words that earned coins this level.
+    /// Reset on level transition. Capped at [DICT_BONUS_COIN_CAP] — bonuses
+    /// found beyond it are still recognised but don't progress hints/coins.
+    var dictBonusEarned by mutableStateOf(0)
+        private set
 
     // ── Meta-progression (streak + daily spin) ──────────────────────
     var lastPlayedEpochDay by mutableStateOf(0L)
@@ -92,7 +119,10 @@ class GameState(
     /** Returns a status message after submission. */
     fun trySubmit(): String {
         val guess = currentWord()
-        if (guess.length < 2) return "Make a longer word."
+        if (guess.length < 2) {
+            recordAttempt(guess, AttemptResult.TOO_SHORT)
+            return "Make a longer word."
+        }
 
         if (answers.contains(guess)) {
             return if (!found.contains(guess)) {
@@ -100,10 +130,12 @@ class GameState(
                 coins += 2
                 val hintMsg = awardProgress()
                 clearSelection()
+                recordAttempt(guess, AttemptResult.GRID)
                 persist()
                 "Found: $guess (+2 pts)$hintMsg"
             } else {
                 clearSelection()
+                recordAttempt(guess, AttemptResult.DUPLICATE)
                 "Already found."
             }
         }
@@ -114,16 +146,59 @@ class GameState(
                 coins += 2
                 val hintMsg = awardProgress()
                 clearSelection()
+                recordAttempt(guess, AttemptResult.BONUS)
                 persist()
                 "Bonus: $guess (+2 pts)$hintMsg"
             } else {
                 clearSelection()
+                recordAttempt(guess, AttemptResult.DUPLICATE)
+                "Bonus already counted."
+            }
+        }
+
+        // Dictionary fallback (Option C hybrid). The wheel selection
+        // mechanism guarantees the word is spellable from the wheel, so
+        // we only need a dictionary membership check. First N earn
+        // coins/hint progress; the rest are recognised but gated to
+        // preserve hint pacing.
+        if (Dictionary.contains(guess)) {
+            return if (!bonusFound.contains(guess)) {
+                bonusFound.add(guess)
+                if (dictBonusEarned < DICT_BONUS_COIN_CAP) {
+                    coins += 2
+                    dictBonusEarned += 1
+                    val hintMsg = awardProgress()
+                    clearSelection()
+                    recordAttempt(guess, AttemptResult.BONUS)
+                    persist()
+                    "Bonus: $guess (+2 pts)$hintMsg"
+                } else {
+                    clearSelection()
+                    recordAttempt(guess, AttemptResult.BONUS)
+                    persist()
+                    "Bonus: $guess (cap reached)"
+                }
+            } else {
+                clearSelection()
+                recordAttempt(guess, AttemptResult.DUPLICATE)
                 "Bonus already counted."
             }
         }
 
         clearSelection()
+        recordAttempt(guess, AttemptResult.INVALID)
         return "No match."
+    }
+
+    private fun recordAttempt(word: String, result: AttemptResult) {
+        // Skip empty (auto-submit on a tap with no selection) and the
+        // TOO_SHORT case for sub-2-letter prefixes — they're noise the
+        // player didn't intend to "try".
+        if (word.length < 2) return
+        recentAttempts.add(0, Attempt(word, result))
+        while (recentAttempts.size > RECENT_ATTEMPTS_CAP) {
+            recentAttempts.removeAt(recentAttempts.size - 1)
+        }
     }
 
     private fun awardProgress(): String {
@@ -166,6 +241,8 @@ class GameState(
         bonusFound.clear()
         revealed.clear()
         selection.clear()
+        recentAttempts.clear()
+        dictBonusEarned = 0
         persist()
     }
 

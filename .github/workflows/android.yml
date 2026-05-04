@@ -46,6 +46,13 @@ jobs:
       - name: Validate level data
         run: python3 tools/validate_levels.py
 
+      # Belt-and-braces: catch the case where someone edits the deny-list
+      # or supplement but forgets to regenerate the bundled dictionary.
+      # `--check` exits non-zero if the build output diverges from the
+      # canonical assets/dictionary.txt that's checked in.
+      - name: Validate bundled dictionary
+        run: python3 tools/dictionary/build_dictionary.py --check
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:

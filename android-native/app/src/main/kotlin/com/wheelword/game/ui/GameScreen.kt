@@ -41,19 +41,25 @@ private data class Spec(
     val gapAfterWord: Dp,
     val gapBeforeButtons: Dp,
     val statusFontSp: Int,
+    // Cap the grid at ~34% of column height in portrait so the wheel,
+    // which uses leftover space, stays the dominant element. Without
+    // this, a 9x9 grid eats most of the column on later levels and the
+    // wheel shrinks to ~200dp. Landscape (side-by-side) needs no cap.
+    val gridMaxHeight: Dp,
 )
 
 private fun specFor(width: Dp, height: Dp, landscape: Boolean): Spec {
     val short = minOf(width, height)
     val compact = height < 680.dp || (landscape && height < 420.dp)
     return Spec(
-        outerH = if (short < 360.dp) 10.dp else 16.dp,
+        outerH = if (short < 360.dp) 8.dp else 12.dp,
         outerV = if (compact) 12.dp else 24.dp,
         gapAfterTopBar = if (compact) 8.dp else 16.dp,
         gapAfterGrid = if (compact) 8.dp else 14.dp,
         gapAfterWord = if (compact) 4.dp else 6.dp,
         gapBeforeButtons = if (compact) 4.dp else 8.dp,
         statusFontSp = if (short < 360.dp) 13 else 15,
+        gridMaxHeight = if (landscape) Dp.Unspecified else (height * 0.34f),
     )
 }
 
@@ -101,6 +107,10 @@ fun GameScreen() {
     var pendingDifficultyTier by remember { mutableStateOf<com.wheelword.game.Difficulty?>(null) }
     var pendingNextLevel by remember { mutableStateOf<Int?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
+    // Help dialog: open by default for first-time players (storage.seenHelp
+    // == false). Once the player dismisses, we flip the flag persistently
+    // so it doesn't pop again on subsequent launches.
+    var helpOpen by remember { mutableStateOf(storage?.seenHelp == false) }
     // App opens on the home screen; tap "LEVEL X" to enter the puzzle.
     var atHome by rememberSaveable { mutableStateOf(true) }
 
@@ -222,6 +232,7 @@ fun GameScreen() {
                 onShuffle = { game.shuffleTiles() },
                 onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
                 onSettingsClick = { settingsOpen = true },
+                onHelpClick = { helpOpen = true },
             )
         } else {
             PortraitContent(
@@ -238,6 +249,7 @@ fun GameScreen() {
                 onShuffle = { game.shuffleTiles() },
                 onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
                 onSettingsClick = { settingsOpen = true },
+                onHelpClick = { helpOpen = true },
             )
         }
 
@@ -315,6 +327,15 @@ fun GameScreen() {
                 onDismiss = { settingsOpen = false },
             )
         }
+
+        if (helpOpen) {
+            HelpDialog(
+                onDismiss = {
+                    helpOpen = false
+                    storage?.seenHelp = true
+                },
+            )
+        }
     }
 }
 
@@ -331,6 +352,7 @@ private fun PortraitContent(
     onShuffle: () -> Unit,
     onHint: () -> Unit,
     onSettingsClick: () -> Unit,
+    onHelpClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -354,6 +376,8 @@ private fun PortraitContent(
             // SPIN moved to a floating button so it never squishes the
             // coin / word / level labels inside the TopBar row.
             Spacer(Modifier.width(8.dp))
+            HelpIconButton(onClick = onHelpClick)
+            Spacer(Modifier.width(8.dp))
             SettingsIconButton(onClick = onSettingsClick)
         }
         Spacer(Modifier.height(spec.gapAfterTopBar))
@@ -365,6 +389,7 @@ private fun PortraitContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp),
+            maxHeight = spec.gridMaxHeight,
         )
         Spacer(Modifier.height(spec.gapAfterGrid))
 
@@ -372,6 +397,7 @@ private fun PortraitContent(
         Spacer(Modifier.height(spec.gapAfterWord))
 
         StatusBubble(status = status, fontSp = spec.statusFontSp)
+        RecentAttemptsRow(attempts = game.recentAttempts)
 
         BoxWithConstraints(
             modifier = Modifier
@@ -416,6 +442,7 @@ private fun LandscapeContent(
     onShuffle: () -> Unit,
     onHint: () -> Unit,
     onSettingsClick: () -> Unit,
+    onHelpClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -436,6 +463,8 @@ private fun LandscapeContent(
                 )
             }
             // SPIN moved to a floating button — see PortraitContent.
+            Spacer(Modifier.width(8.dp))
+            HelpIconButton(onClick = onHelpClick)
             Spacer(Modifier.width(8.dp))
             SettingsIconButton(onClick = onSettingsClick)
         }
@@ -465,6 +494,7 @@ private fun LandscapeContent(
                 WordPreview(text = game.currentWord())
                 Spacer(Modifier.height(spec.gapAfterWord))
                 StatusBubble(status = status, fontSp = spec.statusFontSp)
+                RecentAttemptsRow(attempts = game.recentAttempts)
             }
 
             Spacer(Modifier.width(16.dp))
@@ -516,6 +546,8 @@ private fun LandscapeContent(
 private val WordPreviewSlotHeight = 40.dp
 private val StatusSlotHeight = 32.dp
 private val BonusRowSlotHeight = 22.dp
+private val RecentAttemptsSlotHeight = 32.dp
+private const val RECENT_ATTEMPTS_SHOWN = 3
 
 @Composable
 private fun WordPreview(text: String) {
@@ -565,6 +597,73 @@ private fun StatusBubble(status: String, fontSp: Int) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun RecentAttemptsRow(attempts: List<com.wheelword.game.Attempt>) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(RecentAttemptsSlotHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (attempts.isNotEmpty()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                for (a in attempts.take(RECENT_ATTEMPTS_SHOWN)) {
+                    AttemptChip(a)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AttemptChip(attempt: com.wheelword.game.Attempt) {
+    val (bg, fg, decoration) = when (attempt.result) {
+        com.wheelword.game.AttemptResult.GRID -> Triple(
+            GameColors.GemGreen,
+            Color.White,
+            null,
+        )
+        com.wheelword.game.AttemptResult.BONUS -> Triple(
+            GameColors.StarYellow,
+            Color(0xFF1E1E1E),
+            null,
+        )
+        com.wheelword.game.AttemptResult.DUPLICATE -> Triple(
+            GameColors.BadgeBlue,
+            Color.White,
+            null,
+        )
+        com.wheelword.game.AttemptResult.INVALID -> Triple(
+            Color(0x55000000),
+            Color(0xC0FFFFFF),
+            androidx.compose.ui.text.style.TextDecoration.LineThrough,
+        )
+        com.wheelword.game.AttemptResult.TOO_SHORT -> Triple(
+            Color(0x33000000),
+            Color(0x99FFFFFF),
+            null,
+        )
+    }
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(bg)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = attempt.word,
+            color = fg,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            textDecoration = decoration,
+        )
     }
 }
 
@@ -646,6 +745,24 @@ private fun SettingsIconButton(onClick: () -> Unit) {
             text = "⚙",
             color = Color.White,
             fontSize = 22.sp,
+        )
+    }
+}
+
+@Composable
+private fun HelpIconButton(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(Color(0x40FFFFFF))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Text(
+            text = "?",
+            color = Color.White,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
         )
     }
 }
