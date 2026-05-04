@@ -346,14 +346,18 @@ struct GameScreen: View {
     private static let recentAttemptsSlotHeight: CGFloat = 18
     private static let recentAttemptsShown = 3
 
+    /// Pill must fit inside `wordPreviewSlotHeight` (22 pt). Earlier
+    /// numbers (20 pt text + 8 pt vertical padding × 2 ≈ 40 pt) made
+    /// the pill overflow downward and the wheel painted on top of it
+    /// during a drag. 16 pt text + 2 pt vertical padding ≈ 22 pt fits.
     @ViewBuilder private var wordPreview: some View {
         ZStack {
             if !game.currentWord().isEmpty {
                 Text(game.currentWord())
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundColor(GameColors.letterColor)
-                    .padding(.horizontal, 20).padding(.vertical, 8)
-                    .background(RoundedRectangle(cornerRadius: 18).fill(GameColors.wheelBg))
+                    .padding(.horizontal, 12).padding(.vertical, 2)
+                    .background(RoundedRectangle(cornerRadius: 11).fill(GameColors.wheelBg))
             }
         }
         .frame(maxWidth: .infinity)
@@ -523,9 +527,11 @@ private struct Spec {
 private func spec(for size: CGSize, landscape: Bool) -> Spec {
     let short = min(size.width, size.height)
     let compact = size.height < 680 || (landscape && size.height < 420)
-    // Wheel scale bumped 0.92 -> 0.96 to honour the user's "wheel must
-    // stay big" mandate after real-device testing.
-    let wheelSide = min(size.width * 0.96, size.height * 0.44)
+    // Wheel scale: 0.88 of width (was 0.96). The earlier wider wheel was
+    // crowding the WordPreview pill above and chip strip below; pulling
+    // tiles closer to the visible disc edge (LetterWheel: tileOrbit
+    // 0.62 → 0.72) preserves the visual "big wheel" feel.
+    let wheelSide = min(size.width * 0.88, size.height * 0.40)
     return Spec(
         // Padding / gap trimmed across the board. Real-device screenshots
         // showed roughly ~80 pt of vertical space being eaten by margins
@@ -538,6 +544,6 @@ private func spec(for size: CGSize, landscape: Bool) -> Spec {
         gapAfterWord: compact ? 0 : 2,
         gapBeforeButtons: compact ? 2 : 4,
         statusFontSp: short < 360 ? 13 : 15,
-        wheelSize: max(280, min(wheelSide, 480)),
+        wheelSize: max(260, min(wheelSide, 460)),
     )
 }

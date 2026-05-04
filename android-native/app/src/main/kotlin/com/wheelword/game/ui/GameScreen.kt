@@ -381,10 +381,14 @@ private fun PortraitContent(
     ) {
         // Wheel size is locked to a screen-width fraction — *not* derived
         // from "leftover" Column space — so it never shrinks when the
-        // grid grows for harder levels. 0.96 (vs the previous 0.92) is
-        // the user's "harus stay besar" mandate translated to numbers.
-        val wheelSize = minOf(maxWidth * 0.96f, maxHeight * 0.44f)
-            .coerceIn(280.dp, 480.dp)
+        // grid grows for harder levels. 0.88 of width (down from 0.96):
+        // user feedback was that a wider wheel was crowding the
+        // WordPreview pill above and the chip strip below; reducing
+        // diameter while pushing tiles closer to the visible disc edge
+        // (see LetterWheel — tileOrbit 0.62 → 0.72) keeps the *visible*
+        // wheel area roughly the same but recovers vertical space.
+        val wheelSize = minOf(maxWidth * 0.88f, maxHeight * 0.40f)
+            .coerceIn(260.dp, 460.dp)
 
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -597,6 +601,11 @@ private const val RECENT_ATTEMPTS_SHOWN = 3
 
 @Composable
 private fun WordPreview(text: String) {
+    // Pill must fit inside WordPreviewSlotHeight (22 dp). Earlier the
+    // pill's natural height was ~40 dp (20 sp text + 8 dp vertical
+    // padding × 2), overflowing the slot, so the wheel below was
+    // painting on top of it during the drag. New numbers: 16 sp text
+    // + 2 dp padding = ~22 dp, sits inside the slot cleanly.
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -606,14 +615,14 @@ private fun WordPreview(text: String) {
         if (text.isNotEmpty()) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(RoundedCornerShape(11.dp))
                     .background(GameColors.WheelBg)
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 2.dp),
             ) {
                 Text(
                     text = text,
                     color = GameColors.LetterColor,
-                    fontSize = 20.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }

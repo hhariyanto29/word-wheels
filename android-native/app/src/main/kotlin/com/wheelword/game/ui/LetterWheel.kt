@@ -74,7 +74,7 @@ fun LetterWheel(
                         // Half a tile-radius per step is small enough that
                         // we can't skip a tile, big enough to keep cost low.
                         val tileRpx = wheelSize.width.coerceAtLeast(1f) *
-                            0.5f * 0.99f * 0.20f
+                            0.5f * 0.99f * 0.22f
                         val stepLen = tileRpx.coerceAtLeast(1f) * 0.5f
                         val steps = (distance(from, to) / stepLen)
                             .toInt()
@@ -128,8 +128,13 @@ fun LetterWheel(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = minOf(size.width, size.height) / 2f * 0.99f
-            val tileOrbit = radius * 0.62f
-            val tileR = radius * 0.20f
+            // tileOrbit + tileR = 0.94 → tile outer edge sits 5% inside
+            // the visible disc border. The previous 0.62 + 0.20 = 0.82
+            // left a 17 % "moat" of empty white space that the user
+            // flagged as "jarak antara border dan alphabetnya terlalu
+            // jauh".
+            val tileOrbit = radius * 0.72f
+            val tileR = radius * 0.22f
 
             drawCircle(color = GameColors.WheelBg, radius = radius, center = center)
             drawCircle(
@@ -205,7 +210,7 @@ private fun tilePositions(size: Size, n: Int): List<Offset> {
     if (size.width == 0f || n == 0) return emptyList()
     val center = Offset(size.width / 2f, size.height / 2f)
     val radius = minOf(size.width, size.height) / 2f * 0.99f
-    val tileOrbit = radius * 0.62f
+    val tileOrbit = radius * 0.72f
     return List(n) { i ->
         val angle = i.toFloat() / n * 2f * PI.toFloat() - PI.toFloat() / 2f
         Offset(
@@ -218,7 +223,7 @@ private fun tilePositions(size: Size, n: Int): List<Offset> {
 private fun hitTest(size: Size, n: Int, pos: Offset): Int {
     if (size.width == 0f) return -1
     val radius = minOf(size.width, size.height) / 2f * 0.99f
-    val tileR = radius * 0.20f
+    val tileR = radius * 0.22f
     val positions = tilePositions(size, n)
     // Generous hit padding (~40% beyond the visible tile) keeps drags
     // forgiving when fingers slide quickly — the previous +12px constant

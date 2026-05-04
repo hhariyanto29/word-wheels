@@ -24,8 +24,12 @@ struct LetterWheel: View {
             let size = geo.size
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             let radius = min(size.width, size.height) / 2 * 0.99
-            let tileOrbit = radius * 0.62
-            let tileR = radius * 0.20
+            // tileOrbit + tileR = 0.94 → tile outer edge sits 5 % inside
+            // the visible disc border. The previous 0.62 + 0.20 = 0.82
+            // left a 17 % "moat" of empty white space ("jarak antara
+            // border dan alphabetnya terlalu jauh" in user feedback).
+            let tileOrbit = radius * 0.72
+            let tileR = radius * 0.22
             let shuffleR = size.width * 0.09
 
             let positions: [CGPoint] = (0..<tiles.count).map { i in
