@@ -1,6 +1,6 @@
 # Word Wheel Crossword
 
-A word puzzle game built with Rust and [egui](https://github.com/emilk/egui). Spin the letter wheel, form words, and fill in the crossword grid across 10 progressive levels.
+A word puzzle game built with Rust and [egui](https://github.com/emilk/egui). Spin the letter wheel, form words, and fill in the crossword grid across 100 progressive levels.
 
 ## How to Play
 
