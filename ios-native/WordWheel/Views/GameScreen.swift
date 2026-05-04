@@ -195,6 +195,16 @@ struct GameScreen: View {
             .onChange(of: game.isComplete) { complete in
                 if complete { sound.play(.complete) }
             }
+            // Auto-clear status after a moment so the bubble doesn't
+            // linger. With no reserved slot the column reflows around
+            // its appearance/disappearance.
+            .onChange(of: status) { newValue in
+                guard !newValue.isEmpty else { return }
+                let captured = newValue
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    if status == captured { status = "" }
+                }
+            }
         }
     }
 
@@ -247,10 +257,6 @@ struct GameScreen: View {
             BottomButtons(hintsLeft: game.hintsLeft,
                           wordsTowardHint: game.wordsTowardHint,
                           onHint: handleHint)
-
-            // Always reserve the bonus row's height so finding a bonus
-            // word doesn't reflow the wheel column.
-            bonusRow
         }
         .padding(.horizontal, spec.outerH)
         .padding(.vertical, spec.outerV)
@@ -304,10 +310,6 @@ struct GameScreen: View {
                     BottomButtons(hintsLeft: game.hintsLeft,
                                   wordsTowardHint: game.wordsTowardHint,
                                   onHint: handleHint)
-                    // Always reserve the bonus row's height so finding
-                    // a bonus word doesn't reflow the wheel column.
-                    Spacer().frame(height: 4)
-                    bonusRow
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -324,8 +326,8 @@ struct GameScreen: View {
     // or as a status message appears. Reserving a constant height per
     // slot keeps the wheel rock-solid.
     private static let wordPreviewSlotHeight: CGFloat = 36
-    private static let statusSlotHeight: CGFloat = 26
-    private static let bonusRowSlotHeight: CGFloat = 22
+    // statusSlotHeight removed — status bubble now self-sizes (no
+    // reserved slot) so it can pop in/out without leaving an empty gap.
     // Compact strip — half the original 32pt. Sitting under the wheel,
     // not above it, so the player's eye stays where they last tapped.
     private static let recentAttemptsSlotHeight: CGFloat = 24
@@ -345,18 +347,20 @@ struct GameScreen: View {
         .frame(height: Self.wordPreviewSlotHeight)
     }
 
+    /// No reserved slot any more — when status is empty the view tree
+    /// returns nothing and the column collapses. When set, renders a
+    /// small dark pill that visually separates from the wheel by its
+    /// own padding rather than a fixed-height container that could
+    /// read as overlap.
     @ViewBuilder private func statusBubble(spec: Spec) -> some View {
-        ZStack {
-            if !status.isEmpty {
-                Text(status)
-                    .font(.system(size: CGFloat(spec.statusFontSp)))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 14).padding(.vertical, 6)
-                    .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.549)))
-            }
+        if !status.isEmpty {
+            Text(status)
+                .font(.system(size: CGFloat(spec.statusFontSp)))
+                .foregroundColor(.white)
+                .padding(.horizontal, 14).padding(.vertical, 6)
+                .background(RoundedRectangle(cornerRadius: 14).fill(Color.black.opacity(0.8)))
+                .padding(.vertical, 4)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: Self.statusSlotHeight)
     }
 
     /// Floating SPIN button. Gold-green gradient circle pinned to the
@@ -438,23 +442,6 @@ struct GameScreen: View {
         case .invalid:   return (Color.black.opacity(0.33),  Color.white.opacity(0.75), true)
         case .tooShort:  return (Color.black.opacity(0.20),  Color.white.opacity(0.60), false)
         }
-    }
-
-    @ViewBuilder private var bonusRow: some View {
-        ZStack {
-            if !game.bonusFound.isEmpty {
-                // .lineLimit(1) prevents the row from wrapping to a
-                // second line and getting clipped by our fixed height.
-                Text("Bonus: \(game.bonusFound.joined(separator: ", "))")
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.627))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .padding(.horizontal, 12)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: Self.bonusRowSlotHeight)
     }
 
     // MARK: - Event handlers

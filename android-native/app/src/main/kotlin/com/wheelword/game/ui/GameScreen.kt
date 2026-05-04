@@ -108,6 +108,16 @@ fun GameScreen() {
         if (game.isComplete()) sound?.play(Sfx.Complete)
     }
 
+    // Auto-clear status after a moment so the bubble doesn't linger.
+    // Now that the bubble has no reserved slot, it pops in when set
+    // and pops out when cleared — the column reflows around it.
+    LaunchedEffect(status) {
+        if (status.isNotEmpty()) {
+            kotlinx.coroutines.delay(2500)
+            status = ""
+        }
+    }
+
     val playForStatus: (String) -> Unit = { msg ->
         when {
             msg.startsWith("Found:") -> sound?.play(Sfx.WordFound)
@@ -204,62 +214,72 @@ fun GameScreen() {
                 ),
         )
 
-        if (landscape) {
-            LandscapeContent(
-                game = game,
-                level = game.levelNum,
-                streak = game.currentStreak,
-                status = status,
-                spec = spec,
-                onSubmitWheel = {
-                    if (game.currentWord().length >= 2) {
-                        status = game.trySubmit(); playForStatus(status)
-                    } else game.clearSelection()
-                },
-                onShuffle = { game.shuffleTiles() },
-                onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
-                onSettingsClick = { settingsOpen = true },
-            )
-        } else {
-            PortraitContent(
-                game = game,
-                level = game.levelNum,
-                streak = game.currentStreak,
-                status = status,
-                spec = spec,
-                onSubmitWheel = {
-                    if (game.currentWord().length >= 2) {
-                        status = game.trySubmit(); playForStatus(status)
-                    } else game.clearSelection()
-                },
-                onShuffle = { game.shuffleTiles() },
-                onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
-                onSettingsClick = { settingsOpen = true },
-            )
-        }
-
-        // Floating SPIN button. Only shown on the days the daily spin
-        // is available — keeps it out of the TopBar row entirely so
-        // long coin/word/level labels never get squished by it.
-        if (game.canSpinToday(today)) {
-            FloatingSpinButton(
-                onClick = { spinDialogOpen = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 24.dp),
-            )
-        }
-
-        // Floating help button — bottom-left, smaller than the SPIN
-        // button. Pulled out of the TopBar so the TopBar's level/words
-        // labels have room to breathe (otherwise "Lv.2" wraps to a
-        // vertical glyph stack on narrow widths).
-        FloatingHelpButton(
-            onClick = { helpOpen = true },
+        // Inner content layer — respects system bars (status bar at the
+        // top, gesture/3-button nav at the bottom). The background image
+        // and dark gradient above intentionally render edge-to-edge, but
+        // anything tappable lives inside this insets-aware Box so it
+        // doesn't slide under the navigation bar.
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 14.dp, bottom = 26.dp),
-        )
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.systemBars),
+        ) {
+            if (landscape) {
+                LandscapeContent(
+                    game = game,
+                    level = game.levelNum,
+                    streak = game.currentStreak,
+                    status = status,
+                    spec = spec,
+                    onSubmitWheel = {
+                        if (game.currentWord().length >= 2) {
+                            status = game.trySubmit(); playForStatus(status)
+                        } else game.clearSelection()
+                    },
+                    onShuffle = { game.shuffleTiles() },
+                    onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
+                    onSettingsClick = { settingsOpen = true },
+                )
+            } else {
+                PortraitContent(
+                    game = game,
+                    level = game.levelNum,
+                    streak = game.currentStreak,
+                    status = status,
+                    spec = spec,
+                    onSubmitWheel = {
+                        if (game.currentWord().length >= 2) {
+                            status = game.trySubmit(); playForStatus(status)
+                        } else game.clearSelection()
+                    },
+                    onShuffle = { game.shuffleTiles() },
+                    onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
+                    onSettingsClick = { settingsOpen = true },
+                )
+            }
+
+            // Floating SPIN button. Only shown on the days the daily spin
+            // is available — keeps it out of the TopBar row entirely so
+            // long coin/word/level labels never get squished by it.
+            if (game.canSpinToday(today)) {
+                FloatingSpinButton(
+                    onClick = { spinDialogOpen = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 24.dp),
+                )
+            }
+
+            // Floating help button — bottom-left, smaller than the SPIN
+            // button. Pulled out of the TopBar so the TopBar's level/words
+            // labels have room to breathe.
+            FloatingHelpButton(
+                onClick = { helpOpen = true },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 14.dp, bottom = 26.dp),
+            )
+        }
 
         if (spinDialogOpen) {
             SpinWheelDialog(
@@ -428,10 +448,6 @@ private fun PortraitContent(
                 wordsTowardHint = game.wordsTowardHint,
                 onHint = onHint,
             )
-
-            // Always reserve the bonus row's height so finding a bonus
-            // word doesn't push the wheel up the screen mid-game.
-            BonusRow(found = game.bonusFound)
         }
     }
 }
@@ -534,7 +550,6 @@ private fun LandscapeContent(
                     wordsTowardHint = game.wordsTowardHint,
                     onHint = onHint,
                 )
-                BonusRow(found = game.bonusFound)
             }
         }
     }
@@ -548,7 +563,6 @@ private fun LandscapeContent(
 // appears. Reserving a constant height per slot keeps the wheel rock-solid.
 private val WordPreviewSlotHeight = 36.dp
 private val StatusSlotHeight = 26.dp
-private val BonusRowSlotHeight = 22.dp
 // Compact strip — half the original 32dp. Sitting under the wheel,
 // not above it, so the player's eye stays where they last tapped.
 private val RecentAttemptsSlotHeight = 24.dp
@@ -582,26 +596,23 @@ private fun WordPreview(text: String) {
 
 @Composable
 private fun StatusBubble(status: String, fontSp: Int) {
+    // No reserved slot any more — when status is empty, returns nothing
+    // and the column collapses. When set, renders a small dark pill
+    // that visually separates from the wheel by its own padding rather
+    // than a fixed-height container that could read as overlap.
+    if (status.isEmpty()) return
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(StatusSlotHeight),
-        contentAlignment = Alignment.Center,
+            .padding(top = 4.dp, bottom = 4.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xCC000000))
+            .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
-        if (status.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0x8C000000))
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    text = status,
-                    color = Color.White,
-                    fontSize = fontSp.sp,
-                )
-            }
-        }
+        Text(
+            text = status,
+            color = Color.White,
+            fontSize = fontSp.sp,
+        )
     }
 }
 
@@ -669,29 +680,6 @@ private fun AttemptChip(attempt: com.wheelword.game.Attempt) {
             fontWeight = FontWeight.SemiBold,
             textDecoration = decoration,
         )
-    }
-}
-
-@Composable
-private fun BonusRow(found: List<String>) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(BonusRowSlotHeight),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (found.isNotEmpty()) {
-            // maxLines = 1 + ellipsis prevents the row from wrapping to a
-            // second line and getting clipped by our fixed height.
-            Text(
-                text = "Bonus: ${found.joinToString(", ")}",
-                color = Color(0xA0FFFFFF),
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 12.dp),
-            )
-        }
     }
 }
 
