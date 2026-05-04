@@ -41,3 +41,9 @@ AuthKey_*.p8
 
 # ─── macOS ───────────────────────────────────────────────────────────
 .DS_Store
+
+# ─── Local-only drop zone for raw background art ─────────────────────
+# Used as a staging folder before art is processed (compressed, renamed)
+# into assets/backgrounds/. Keep raw originals out of git — they are
+# typically multi-MB and superseded by the bundled compressed versions.
+/incoming/
