@@ -1,6 +1,5 @@
 package com.wheelword.game.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,12 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wheelword.game.R
 import com.wheelword.game.theme.GameColors
 
 /**
@@ -48,12 +44,10 @@ fun HomeScreen(
                 ),
             ),
     ) {
-        Image(
-            painter = painterResource(R.drawable.game_background),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
+        // Per-level country background (HomeScreen uses the same artwork
+        // the player is about to enter, so the upcoming country is
+        // teased on the menu).
+        GameBackgroundImage(level = levelNum)
         Box(
             modifier = Modifier
                 .fillMaxSize()

@@ -11,13 +11,15 @@ private struct CoinIcon: View {
         ZStack {
             Circle()
                 .fill(LinearGradient(
-                    colors: [Color(hex: 0xFFFFE070), Color(hex: 0xFFFFAA00)],
+                    colors: [Color(hex: 0xFFFFE070), Color(hex: 0xFFFFB020)],
                     startPoint: .topLeading, endPoint: .bottomTrailing,
                 ))
-                .overlay(Circle().stroke(Color(hex: 0xFF8B5A00), lineWidth: 2))
+                .overlay(Circle().stroke(Color(hex: 0xFFB37400), lineWidth: 1.5))
+            // White ★ on the gold disc — earlier the dark-brown glyph
+            // looked muddy at small sizes on real devices.
             Text("★")
-                .font(.system(size: size * 0.6, weight: .black))
-                .foregroundColor(Color(hex: 0xFF8B5A00))
+                .font(.system(size: size * 0.62, weight: .black))
+                .foregroundColor(.white)
         }
         .frame(width: size, height: size)
     }
@@ -40,7 +42,7 @@ struct TopBar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            CoinIcon(size: 22)
+            CoinIcon(size: 24)
                 .scaleEffect(pulseActive ? 1.25 : 1.0)
                 .animation(.easeOut(duration: 0.22), value: pulseActive)
             Spacer().frame(width: 8)
@@ -71,10 +73,14 @@ struct TopBar: View {
 
             Spacer()
 
-            // Level badge
+            // Level badge. lineLimit(1) + fixedSize prevents the vertical
+            // letter-stack glitch ("L / V / . / 2") that appeared when
+            // the help icon was previously stealing horizontal room.
             Text("Lv.\(level)")
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.white)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
                 .padding(.horizontal, 12).padding(.vertical, 4)
                 .background(RoundedRectangle(cornerRadius: 14).fill(Color.white.opacity(0.157)))
         }
