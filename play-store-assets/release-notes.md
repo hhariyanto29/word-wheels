@@ -5,7 +5,7 @@ per language. Keep it short and punchy — this appears on the store page.
 
 ---
 
-## v1.7.5 (versionCode 13) — Country tour + coin-bought hints 🌏
+## v1.7.6 (versionCode 14) — Country tour + coin-bought hints 🌏
 
 ```
 A bigger, friendlier Word Wheel.
