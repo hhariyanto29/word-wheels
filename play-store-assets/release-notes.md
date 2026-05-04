@@ -5,6 +5,37 @@ per language. Keep it short and punchy — this appears on the store page.
 
 ---
 
+## v1.7.5 (versionCode 13) — Country tour + coin-bought hints 🌏
+
+```
+A bigger, friendlier Word Wheel.
+
+• 10 country backgrounds: Vietnam, Brunei, Malaysia,
+  Myanmar, Papua Nugini, Filipina, Singapore, Thailand,
+  Indonesia, Bali — one per 10-level range
+• Bigger letter wheel + roomier crossword grid
+• Buy a hint with 50 points when free hints run out
+• 230 k-word dictionary recognises way more bonus words
+• How-to-Play dialog + tappable points icon
+• Show your last few attempts under the wheel
+```
+
+Length: ~440 chars ✓ (cut "Tap the points icon for details on coin earning." to fit if needed)
+
+Alternative shorter (~280 chars):
+
+```
+A bigger, friendlier Word Wheel.
+
+• 10 country backgrounds (Vietnam → Bali)
+• Bigger wheel, roomier grid
+• Buy a hint with 50 points when free hints run out
+• 230 k-word dictionary catches more bonus words
+• Show last few attempts under the wheel
+```
+
+---
+
 ## v1.7.3 (versionCode 11) — First public launch ⭐
 
 Use this for the **first production release**. Frames the launch
