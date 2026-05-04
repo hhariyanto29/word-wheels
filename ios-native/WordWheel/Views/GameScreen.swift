@@ -462,12 +462,23 @@ struct GameScreen: View {
     /// VStack space — letting the wheel and chip strip claim
     /// everything above the floating-button row.
     @ViewBuilder private var floatingHintButton: some View {
+        let canBuyWithCoins = game.hintsLeft == 0 && game.coins >= HINT_COIN_COST
+        let available = game.hintsLeft > 0 || canBuyWithCoins
+        let badgeBg: Color = {
+            if game.hintsLeft > 0 { return Color(hex: 0xFF32B450) }       // green
+            if canBuyWithCoins    { return Color(hex: 0xFFFFB400) }       // gold (purchasable)
+            return Color(hex: 0xFF787878)                                  // gray (can't afford)
+        }()
+        let badgeText = game.hintsLeft > 0 ? "\(game.hintsLeft)" : "\(HINT_COIN_COST)"
+        // Smaller font when displaying "50" so two digits fit cleanly.
+        let badgeFont: CGFloat = game.hintsLeft > 0 ? 14 : 12
+
         VStack(spacing: 3) {
             Button(action: handleHint) {
                 ZStack(alignment: .topTrailing) {
                     ZStack {
                         Circle()
-                            .fill(game.hintsLeft > 0
+                            .fill(available
                                   ? Color(hex: 0xFFFFB400)
                                   : Color(hex: 0xB4282828))
                             .frame(width: 64, height: 64)
@@ -479,14 +490,12 @@ struct GameScreen: View {
 
                     ZStack {
                         Circle()
-                            .fill(game.hintsLeft > 0
-                                  ? Color(hex: 0xFF32B450)
-                                  : Color(hex: 0xFF787878))
+                            .fill(badgeBg)
                             .frame(width: 28, height: 28)
                             .overlay(Circle().stroke(Color.white, lineWidth: 2.5))
                             .shadow(color: .black.opacity(0.4), radius: 3, x: 0, y: 2)
-                        Text("\(game.hintsLeft)")
-                            .font(.system(size: 14, weight: .heavy))
+                        Text(badgeText)
+                            .font(.system(size: badgeFont, weight: .heavy))
                             .foregroundColor(.white)
                     }
                 }

@@ -287,6 +287,7 @@ fun GameScreen() {
             FloatingHintButton(
                 hintsLeft = game.hintsLeft,
                 wordsTowardHint = game.wordsTowardHint,
+                coins = game.coins,
                 onHint = {
                     status = game.hintRevealRandomLetter()
                     playForStatus(status)
@@ -822,9 +823,13 @@ private fun FloatingHelpButton(onClick: () -> Unit, modifier: Modifier = Modifie
 private fun FloatingHintButton(
     hintsLeft: Int,
     wordsTowardHint: Int,
+    coins: Int,
     onHint: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val canBuyWithCoins = hintsLeft == 0 && coins >= com.wheelword.game.HINT_COIN_COST
+    val available = hintsLeft > 0 || canBuyWithCoins
+
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -837,8 +842,8 @@ private fun FloatingHintButton(
                     .shadow(elevation = 6.dp, shape = CircleShape)
                     .clip(CircleShape)
                     .background(
-                        if (hintsLeft > 0) Color(0xFFFFB400)
-                        else Color(0xB4282828)
+                        if (available) Color(0xFFFFB400)  // gold = clickable
+                        else Color(0xB4282828)            // gray = unaffordable
                     )
                     .clickable(onClick = onHint),
                 contentAlignment = Alignment.Center,
@@ -848,24 +853,34 @@ private fun FloatingHintButton(
                     fontSize = 28.sp,
                 )
             }
-            // Count badge — anchored top-right of the outer 78dp box.
+            // Count badge: green digit when free hints remain; gold
+            // "50" when the player can buy with coins; muted "50" when
+            // they can't (still tappable so they get the "Need X coins"
+            // toast).
+            val badgeBg = when {
+                hintsLeft > 0 -> Color(0xFF32B450)            // green
+                canBuyWithCoins -> Color(0xFFFFB400)          // gold (purchasable)
+                else -> Color(0xFF787878)                     // gray (can't afford)
+            }
+            val badgeText: String = if (hintsLeft > 0) hintsLeft.toString()
+                                    else com.wheelword.game.HINT_COIN_COST.toString()
+            // Slightly smaller font when showing the price so two
+            // digits fit comfortably inside the 28 dp ring.
+            val badgeFont = if (hintsLeft > 0) 14.sp else 12.sp
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .shadow(elevation = 4.dp, shape = CircleShape)
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (hintsLeft > 0) Color(0xFF32B450)
-                        else Color(0xFF787878)
-                    )
+                    .background(badgeBg)
                     .border(width = 2.5.dp, color = Color.White, shape = CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = hintsLeft.toString(),
+                    text = badgeText,
                     color = Color.White,
-                    fontSize = 14.sp,
+                    fontSize = badgeFont,
                     fontWeight = FontWeight.Black,
                 )
             }
