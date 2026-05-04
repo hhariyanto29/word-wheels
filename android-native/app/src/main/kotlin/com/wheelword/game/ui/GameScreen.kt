@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -42,13 +43,17 @@ private data class Spec(
 private fun specFor(width: Dp, height: Dp, landscape: Boolean): Spec {
     val short = minOf(width, height)
     val compact = height < 680.dp || (landscape && height < 420.dp)
+    // Trimmed across the board: real-device feedback was that the
+    // grid + wheel were losing usable area to outer / between-element
+    // padding. Floors stay where they are (8 / 4 on small phones)
+    // but the regular sizes are tighter than the previous defaults.
     return Spec(
-        outerH = if (short < 360.dp) 8.dp else 12.dp,
-        outerV = if (compact) 10.dp else 18.dp,
-        gapAfterTopBar = if (compact) 8.dp else 14.dp,
-        gapAfterGrid = if (compact) 6.dp else 10.dp,
-        gapAfterWord = if (compact) 2.dp else 4.dp,
-        gapBeforeButtons = if (compact) 4.dp else 6.dp,
+        outerH = if (short < 360.dp) 4.dp else 8.dp,
+        outerV = if (compact) 6.dp else 10.dp,
+        gapAfterTopBar = if (compact) 4.dp else 8.dp,
+        gapAfterGrid = if (compact) 2.dp else 4.dp,
+        gapAfterWord = if (compact) 0.dp else 2.dp,
+        gapBeforeButtons = if (compact) 2.dp else 4.dp,
         statusFontSp = if (short < 360.dp) 13 else 15,
     )
 }
@@ -106,6 +111,16 @@ fun GameScreen() {
 
     LaunchedEffect(game.levelNum, game.isComplete()) {
         if (game.isComplete()) sound?.play(Sfx.Complete)
+    }
+
+    // Auto-clear status after a moment so the bubble doesn't linger.
+    // Now that the bubble has no reserved slot, it pops in when set
+    // and pops out when cleared — the column reflows around it.
+    LaunchedEffect(status) {
+        if (status.isNotEmpty()) {
+            kotlinx.coroutines.delay(2500)
+            status = ""
+        }
     }
 
     val playForStatus: (String) -> Unit = { msg ->
@@ -204,62 +219,72 @@ fun GameScreen() {
                 ),
         )
 
-        if (landscape) {
-            LandscapeContent(
-                game = game,
-                level = game.levelNum,
-                streak = game.currentStreak,
-                status = status,
-                spec = spec,
-                onSubmitWheel = {
-                    if (game.currentWord().length >= 2) {
-                        status = game.trySubmit(); playForStatus(status)
-                    } else game.clearSelection()
-                },
-                onShuffle = { game.shuffleTiles() },
-                onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
-                onSettingsClick = { settingsOpen = true },
-            )
-        } else {
-            PortraitContent(
-                game = game,
-                level = game.levelNum,
-                streak = game.currentStreak,
-                status = status,
-                spec = spec,
-                onSubmitWheel = {
-                    if (game.currentWord().length >= 2) {
-                        status = game.trySubmit(); playForStatus(status)
-                    } else game.clearSelection()
-                },
-                onShuffle = { game.shuffleTiles() },
-                onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
-                onSettingsClick = { settingsOpen = true },
-            )
-        }
-
-        // Floating SPIN button. Only shown on the days the daily spin
-        // is available — keeps it out of the TopBar row entirely so
-        // long coin/word/level labels never get squished by it.
-        if (game.canSpinToday(today)) {
-            FloatingSpinButton(
-                onClick = { spinDialogOpen = true },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 24.dp),
-            )
-        }
-
-        // Floating help button — bottom-left, smaller than the SPIN
-        // button. Pulled out of the TopBar so the TopBar's level/words
-        // labels have room to breathe (otherwise "Lv.2" wraps to a
-        // vertical glyph stack on narrow widths).
-        FloatingHelpButton(
-            onClick = { helpOpen = true },
+        // Inner content layer — respects system bars (status bar at the
+        // top, gesture/3-button nav at the bottom). The background image
+        // and dark gradient above intentionally render edge-to-edge, but
+        // anything tappable lives inside this insets-aware Box so it
+        // doesn't slide under the navigation bar.
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 14.dp, bottom = 26.dp),
-        )
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.systemBars),
+        ) {
+            if (landscape) {
+                LandscapeContent(
+                    game = game,
+                    level = game.levelNum,
+                    streak = game.currentStreak,
+                    status = status,
+                    spec = spec,
+                    onSubmitWheel = {
+                        if (game.currentWord().length >= 2) {
+                            status = game.trySubmit(); playForStatus(status)
+                        } else game.clearSelection()
+                    },
+                    onShuffle = { game.shuffleTiles() },
+                    onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
+                    onSettingsClick = { settingsOpen = true },
+                )
+            } else {
+                PortraitContent(
+                    game = game,
+                    level = game.levelNum,
+                    streak = game.currentStreak,
+                    status = status,
+                    spec = spec,
+                    onSubmitWheel = {
+                        if (game.currentWord().length >= 2) {
+                            status = game.trySubmit(); playForStatus(status)
+                        } else game.clearSelection()
+                    },
+                    onShuffle = { game.shuffleTiles() },
+                    onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
+                    onSettingsClick = { settingsOpen = true },
+                )
+            }
+
+            // Floating SPIN button. Only shown on the days the daily spin
+            // is available — keeps it out of the TopBar row entirely so
+            // long coin/word/level labels never get squished by it.
+            if (game.canSpinToday(today)) {
+                FloatingSpinButton(
+                    onClick = { spinDialogOpen = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 24.dp),
+                )
+            }
+
+            // Floating help button — bottom-left, smaller than the SPIN
+            // button. Pulled out of the TopBar so the TopBar's level/words
+            // labels have room to breathe.
+            FloatingHelpButton(
+                onClick = { helpOpen = true },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 14.dp, bottom = 26.dp),
+            )
+        }
 
         if (spinDialogOpen) {
             SpinWheelDialog(
@@ -356,11 +381,14 @@ private fun PortraitContent(
     ) {
         // Wheel size is locked to a screen-width fraction — *not* derived
         // from "leftover" Column space — so it never shrinks when the
-        // grid grows for harder levels. The minOf vs height keeps it
-        // sane on landscape-ish or short windows; the coerceIn ensures
-        // a usable floor on tiny phones and a sensible ceiling on tablets.
-        val wheelSize = minOf(maxWidth * 0.92f, maxHeight * 0.42f)
-            .coerceIn(280.dp, 480.dp)
+        // grid grows for harder levels. 0.88 of width (down from 0.96):
+        // user feedback was that a wider wheel was crowding the
+        // WordPreview pill above and the chip strip below; reducing
+        // diameter while pushing tiles closer to the visible disc edge
+        // (see LetterWheel — tileOrbit 0.62 → 0.72) keeps the *visible*
+        // wheel area roughly the same but recovers vertical space.
+        val wheelSize = minOf(maxWidth * 0.88f, maxHeight * 0.40f)
+            .coerceIn(260.dp, 460.dp)
 
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -379,18 +407,12 @@ private fun PortraitContent(
                         streak = streak,
                     )
                 }
-                // Help moved to a floating button bottom-left (see below).
-                // SPIN is also a floating button. Keeping the TopBar row
-                // to {labels + settings} only stops the labels from getting
-                // squeezed into vertical glyph stacks.
                 Spacer(Modifier.width(8.dp))
                 SettingsIconButton(onClick = onSettingsClick)
             }
             Spacer(Modifier.height(spec.gapAfterTopBar))
 
             // Grid takes the leftover vertical space ABOVE the wheel.
-            // Capped maxHeight removed — the wheel is now fixed, so the
-            // grid no longer competes for it.
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -401,14 +423,11 @@ private fun PortraitContent(
                     level = game.level,
                     visible = game.visibleLettersMap(),
                     usedCells = game.usedCells,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
             WordPreview(text = game.currentWord())
-            StatusBubble(status = status, fontSp = spec.statusFontSp)
 
             LetterWheel(
                 tiles = game.tiles,
@@ -418,9 +437,7 @@ private fun PortraitContent(
                 modifier = Modifier.size(wheelSize),
             )
 
-            // Word history sits BELOW the wheel as a compact strip — out
-            // of the wheel's way visually, easy to glance at after a
-            // submit, doesn't reserve screen real estate above the wheel.
+            // Word history sits BELOW the wheel as a compact strip.
             RecentAttemptsRow(attempts = game.recentAttempts)
 
             BottomButtons(
@@ -428,11 +445,25 @@ private fun PortraitContent(
                 wordsTowardHint = game.wordsTowardHint,
                 onHint = onHint,
             )
-
-            // Always reserve the bonus row's height so finding a bonus
-            // word doesn't push the wheel up the screen mid-game.
-            BonusRow(found = game.bonusFound)
         }
+
+        // Status notification — pure overlay, NEVER part of the column
+        // flow. The previous "in-flow" placement made the grid resize
+        // every time a status pill popped in (real-device feedback flagged
+        // this as the most jarring bug). Now it floats above the wheel
+        // top edge at a fixed offset from the bottom, so the grid stays
+        // rock-steady regardless of whether status is showing.
+        StatusOverlay(
+            status = status,
+            fontSp = spec.statusFontSp,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                // Stack from the bottom: BottomButtons (~90 — hint disc 78
+                // + progress bar) + recent (18) + wheel + 8 buffer. Keeps
+                // status visually just above the wheel's top edge.
+                .padding(bottom = wheelSize + RecentAttemptsSlotHeight + 90.dp + 8.dp)
+                .zIndex(2f),
+        )
     }
 }
 
@@ -450,11 +481,14 @@ private fun LandscapeContent(
     onHint: () -> Unit,
     onSettingsClick: () -> Unit,
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = spec.outerH, vertical = spec.outerV),
     ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+        ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -496,8 +530,8 @@ private fun LandscapeContent(
                 )
                 Spacer(Modifier.height(spec.gapAfterGrid))
                 WordPreview(text = game.currentWord())
-                Spacer(Modifier.height(spec.gapAfterWord))
-                StatusBubble(status = status, fontSp = spec.statusFontSp)
+                // Status now renders as overlay at the LandscapeContent
+                // outer Box level — see end of function.
             }
 
             Spacer(Modifier.width(16.dp))
@@ -534,9 +568,20 @@ private fun LandscapeContent(
                     wordsTowardHint = game.wordsTowardHint,
                     onHint = onHint,
                 )
-                BonusRow(found = game.bonusFound)
             }
         }
+        }  // end Column
+
+        // Status overlay — landscape positions it center-screen between
+        // the grid (left) and wheel (right) columns. Same principle as
+        // portrait: never affects layout flow.
+        StatusOverlay(
+            status = status,
+            fontSp = spec.statusFontSp,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .zIndex(2f),
+        )
     }
 }
 
@@ -546,16 +591,21 @@ private fun LandscapeContent(
 // remaining vertical space, so any slot whose height varies frame-to-frame
 // would resize the wheel as the player types or as a status message
 // appears. Reserving a constant height per slot keeps the wheel rock-solid.
-private val WordPreviewSlotHeight = 36.dp
-private val StatusSlotHeight = 26.dp
-private val BonusRowSlotHeight = 22.dp
-// Compact strip — half the original 32dp. Sitting under the wheel,
-// not above it, so the player's eye stays where they last tapped.
-private val RecentAttemptsSlotHeight = 24.dp
+private val WordPreviewSlotHeight = 22.dp
+// StatusSlotHeight removed — status now renders as an absolute overlay
+// (see PortraitContent / LandscapeContent), so it never reserves space
+// in the column and never resizes the grid.
+// Compact strip — sits under the wheel, not above it.
+private val RecentAttemptsSlotHeight = 18.dp
 private const val RECENT_ATTEMPTS_SHOWN = 3
 
 @Composable
 private fun WordPreview(text: String) {
+    // Pill must fit inside WordPreviewSlotHeight (22 dp). Earlier the
+    // pill's natural height was ~40 dp (20 sp text + 8 dp vertical
+    // padding × 2), overflowing the slot, so the wheel below was
+    // painting on top of it during the drag. New numbers: 16 sp text
+    // + 2 dp padding = ~22 dp, sits inside the slot cleanly.
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -565,14 +615,14 @@ private fun WordPreview(text: String) {
         if (text.isNotEmpty()) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(RoundedCornerShape(11.dp))
                     .background(GameColors.WheelBg)
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                    .padding(horizontal = 12.dp, vertical = 2.dp),
             ) {
                 Text(
                     text = text,
                     color = GameColors.LetterColor,
-                    fontSize = 20.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -581,27 +631,27 @@ private fun WordPreview(text: String) {
 }
 
 @Composable
-private fun StatusBubble(status: String, fontSp: Int) {
+private fun StatusOverlay(
+    status: String,
+    fontSp: Int,
+    modifier: Modifier = Modifier,
+) {
+    // Pure overlay: returns nothing when status is empty, and the caller
+    // is responsible for absolute positioning via [modifier]. This pill
+    // never participates in any column layout — that's the whole point;
+    // grids and wheels nearby must not move when it appears or disappears.
+    if (status.isEmpty()) return
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(StatusSlotHeight),
-        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xCC000000))
+            .padding(horizontal = 14.dp, vertical = 6.dp),
     ) {
-        if (status.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0x8C000000))
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-            ) {
-                Text(
-                    text = status,
-                    color = Color.White,
-                    fontSize = fontSp.sp,
-                )
-            }
-        }
+        Text(
+            text = status,
+            color = Color.White,
+            fontSize = fontSp.sp,
+        )
     }
 }
 
@@ -669,29 +719,6 @@ private fun AttemptChip(attempt: com.wheelword.game.Attempt) {
             fontWeight = FontWeight.SemiBold,
             textDecoration = decoration,
         )
-    }
-}
-
-@Composable
-private fun BonusRow(found: List<String>) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(BonusRowSlotHeight),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (found.isNotEmpty()) {
-            // maxLines = 1 + ellipsis prevents the row from wrapping to a
-            // second line and getting clipped by our fixed height.
-            Text(
-                text = "Bonus: ${found.joinToString(", ")}",
-                color = Color(0xA0FFFFFF),
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 12.dp),
-            )
-        }
     }
 }
 

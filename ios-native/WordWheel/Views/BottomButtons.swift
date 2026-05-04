@@ -17,7 +17,7 @@ struct BottomButtons: View {
                        onHint: onHint)
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
+        .padding(.vertical, 2)
     }
 }
 
@@ -27,14 +27,12 @@ private struct HintButton: View {
     let onHint: () -> Void
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 3) {
             Button(action: onHint) {
-                // Outer 84pt frame puts the badge fully OUTSIDE the
-                // 64pt button corner so the digit isn't visually
-                // swallowed by the gold disc behind it. White ring +
-                // drop shadow on the badge make it pop independently.
+                // Outer 78pt frame keeps the count badge sitting tight
+                // against the 64pt gold disc — the previous 84pt left
+                // a 10pt gap that read as "detached badge".
                 ZStack(alignment: .topTrailing) {
-                    // Button anchored bottom-left of the outer frame
                     ZStack {
                         Circle()
                             .fill(hintsLeft > 0
@@ -45,11 +43,8 @@ private struct HintButton: View {
                         Text("\u{1F4A1}")
                             .font(.system(size: 28))
                     }
-                    .frame(width: 84, height: 84, alignment: .bottomLeading)
+                    .frame(width: 78, height: 78, alignment: .bottomLeading)
 
-                    // Count badge — anchored top-right of the outer
-                    // 84pt frame. White ring keeps it readable
-                    // regardless of what colour is behind it.
                     ZStack {
                         Circle()
                             .fill(hintsLeft > 0
@@ -63,7 +58,7 @@ private struct HintButton: View {
                             .foregroundColor(.white)
                     }
                 }
-                .frame(width: 84, height: 84)
+                .frame(width: 78, height: 78)
             }
             .buttonStyle(.plain)
 
@@ -71,12 +66,12 @@ private struct HintButton: View {
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color(hex: 0xFF28283C))
-                    .frame(width: 80, height: 6)
+                    .frame(width: 72, height: 5)
                 let progress = CGFloat(min(wordsTowardHint, 10)) / 10.0
                 if progress > 0 {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(Color(hex: 0xFF50DC78))
-                        .frame(width: 80 * progress, height: 6)
+                        .frame(width: 72 * progress, height: 5)
                 }
             }
         }
