@@ -407,23 +407,29 @@ struct GameScreen: View {
         .frame(height: Self.recentAttemptsSlotHeight)
     }
 
-    @ViewBuilder private func attemptChip(_ a: Attempt) -> some View {
-        let bg: Color
-        let fg: Color
-        let strike: Bool
-        switch a.result {
-        case .grid:      bg = GameColors.gemGreen;        fg = .white;                    strike = false
-        case .bonus:     bg = GameColors.starYellow;      fg = GameColors.letterColor;    strike = false
-        case .duplicate: bg = GameColors.badgeBlue;       fg = .white;                    strike = false
-        case .invalid:   bg = Color.black.opacity(0.33);  fg = Color.white.opacity(0.75); strike = true
-        case .tooShort:  bg = Color.black.opacity(0.20);  fg = Color.white.opacity(0.60); strike = false
-        }
-        Text(a.word)
+    /// Return type avoids `@ViewBuilder` because the switch statement
+    /// produces a `()` value; ViewBuilder would try to interpret that as
+    /// a view and fail with "type '()' cannot conform to 'View'". A plain
+    /// function with an explicit `return` lets the let/switch flow
+    /// naturally and only emits a single View at the end.
+    private func attemptChip(_ a: Attempt) -> some View {
+        let style = chipStyle(for: a.result)
+        return Text(a.word)
             .font(.system(size: 13, weight: .semibold))
-            .foregroundColor(fg)
-            .strikethrough(strike, color: fg)
+            .foregroundColor(style.fg)
+            .strikethrough(style.strike, color: style.fg)
             .padding(.horizontal, 10).padding(.vertical, 4)
-            .background(RoundedRectangle(cornerRadius: 10).fill(bg))
+            .background(RoundedRectangle(cornerRadius: 10).fill(style.bg))
+    }
+
+    private func chipStyle(for result: AttemptResult) -> (bg: Color, fg: Color, strike: Bool) {
+        switch result {
+        case .grid:      return (GameColors.gemGreen,        .white,                    false)
+        case .bonus:     return (GameColors.starYellow,      GameColors.letterColor,    false)
+        case .duplicate: return (GameColors.badgeBlue,       .white,                    false)
+        case .invalid:   return (Color.black.opacity(0.33),  Color.white.opacity(0.75), true)
+        case .tooShort:  return (Color.black.opacity(0.20),  Color.white.opacity(0.60), false)
+        }
     }
 
     @ViewBuilder private var bonusRow: some View {

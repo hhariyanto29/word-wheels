@@ -45,7 +45,9 @@ NSFW_BASE = os.path.join(DICT_DIR, "nsfw-base-en.txt")
 NSFW_SUPPLEMENT = os.path.join(DICT_DIR, "nsfw-supplement.txt")
 
 CANONICAL_OUT = os.path.join(REPO, "assets", "dictionary.txt")
-ANDROID_OUT = os.path.join(REPO, "android-native", "app", "src", "main", "assets", "dictionary.txt")
+# Android picks up the canonical via `assets.srcDirs("../../assets")` in
+# app/build.gradle.kts, so no separate Android mirror — duplicating it
+# triggers a "Duplicate resources" error from MergeSourceSetFolders.
 IOS_OUT = os.path.join(REPO, "ios-native", "WordWheel", "Resources", "dictionary.txt")
 
 
@@ -147,17 +149,17 @@ def check_canonical() -> None:
         more = f" (+{len(leaks)-5} more)" if len(leaks) > 5 else ""
         sys.exit(f"deny-list leak in canonical: {sample}{more}")
 
-    # Each platform must ship an identical copy.
-    for mirror in (ANDROID_OUT, IOS_OUT):
-        if not os.path.exists(mirror):
-            sys.exit(f"platform mirror missing: {mirror}")
-        with open(mirror, encoding="utf-8") as f:
-            mirror_words = [w.strip() for w in f if w.strip()]
-        if mirror_words != words:
-            sys.exit(f"platform mirror out of sync: {mirror}\n"
-                     "rerun build_dictionary.py to refresh")
+    # iOS bundles its own copy under Resources/. Android reads the
+    # canonical directly via assets.srcDirs("../../assets").
+    if not os.path.exists(IOS_OUT):
+        sys.exit(f"iOS mirror missing: {IOS_OUT}")
+    with open(IOS_OUT, encoding="utf-8") as f:
+        ios_words = [w.strip() for w in f if w.strip()]
+    if ios_words != words:
+        sys.exit(f"iOS mirror out of sync: {IOS_OUT}\n"
+                 "rerun build_dictionary.py to refresh")
 
-    print(f"OK: {len(words)} words, sorted, no leaks, all mirrors match.",
+    print(f"OK: {len(words)} words, sorted, no leaks, iOS mirror matches.",
           file=sys.stderr)
 
 
@@ -183,12 +185,11 @@ def main() -> None:
     words = build(args.source, args.min_len, args.max_len)
 
     write(CANONICAL_OUT, words)
-    # Mirror the canonical file to platform-specific bundle paths so each
-    # build pipeline can pick it up without knowing about ours.
-    for path in (ANDROID_OUT, IOS_OUT):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        shutil.copyfile(CANONICAL_OUT, path)
-        print(f"copied to {path}", file=sys.stderr)
+    # Mirror to iOS Resources/. Android picks the canonical up via the
+    # srcDirs alias in app/build.gradle.kts.
+    os.makedirs(os.path.dirname(IOS_OUT), exist_ok=True)
+    shutil.copyfile(CANONICAL_OUT, IOS_OUT)
+    print(f"copied to {IOS_OUT}", file=sys.stderr)
 
 
 if __name__ == "__main__":
