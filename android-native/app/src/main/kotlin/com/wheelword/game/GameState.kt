@@ -26,6 +26,17 @@ private const val RECENT_ATTEMPTS_CAP = 5
 private const val DICT_BONUS_COIN_CAP = 50
 
 /**
+ * Cost in coins to reveal one hint when the player's free-hint pool
+ * is exhausted (`hintsLeft == 0`). Free hints come from the +1 / 10
+ * words progression and the daily spin; this lets cash-rich players
+ * keep advancing without waiting for the next free hint to accrue.
+ *
+ * Surfaced via `internal` (no `private`) so the UI can show the cost
+ * directly in the hint button's count badge.
+ */
+internal const val HINT_COIN_COST = 50
+
+/**
  * Game state for a single level. Uses Compose state holders so UI reacts
  * automatically when state changes.
  *
@@ -211,7 +222,17 @@ class GameState(
     }
 
     fun hintRevealRandomLetter(): String {
-        if (hintsLeft == 0) return "No hints left! Find more words to earn hints."
+        // Three states:
+        //   1. hintsLeft > 0           → use one free hint
+        //   2. hintsLeft == 0,
+        //      coins  >= HINT_COIN_COST → buy a hint with coins
+        //   3. hintsLeft == 0,
+        //      coins  <  HINT_COIN_COST → not enough; bail with msg
+        val canUseFree = hintsLeft > 0
+        val canBuyWithCoins = !canUseFree && coins >= HINT_COIN_COST
+        if (!canUseFree && !canBuyWithCoins) {
+            return "Need $HINT_COIN_COST coins to buy a hint."
+        }
 
         val visible = visibleLettersMap()
         val candidates = usedCells.filter { !visible.containsKey(it) }
@@ -220,9 +241,14 @@ class GameState(
         val (r, c) = candidates.random()
         val ch = level.solutionLetterAt(r, c) ?: return "Hint failed."
         revealed[r to c] = ch
-        hintsLeft -= 1
+        if (canUseFree) {
+            hintsLeft -= 1
+        } else {
+            coins -= HINT_COIN_COST
+        }
         persist()
-        return "Revealed a letter!"
+        return if (canUseFree) "Revealed a letter!"
+               else "Bought a hint (-$HINT_COIN_COST)"
     }
 
     /**

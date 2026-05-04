@@ -1,8 +1,10 @@
 package com.wheelword.game.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -102,6 +104,7 @@ fun GameScreen() {
     var pendingDifficultyTier by remember { mutableStateOf<com.wheelword.game.Difficulty?>(null) }
     var pendingNextLevel by remember { mutableStateOf<Int?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
+    var coinInfoOpen by remember { mutableStateOf(false) }
     // Help dialog: open by default for first-time players (storage.seenHelp
     // == false). Once the player dismisses, we flip the flag persistently
     // so it doesn't pop again on subsequent launches.
@@ -242,8 +245,8 @@ fun GameScreen() {
                         } else game.clearSelection()
                     },
                     onShuffle = { game.shuffleTiles() },
-                    onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
                     onSettingsClick = { settingsOpen = true },
+                    onCoinClick = { coinInfoOpen = true },
                 )
             } else {
                 PortraitContent(
@@ -258,31 +261,43 @@ fun GameScreen() {
                         } else game.clearSelection()
                     },
                     onShuffle = { game.shuffleTiles() },
-                    onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
                     onSettingsClick = { settingsOpen = true },
+                    onCoinClick = { coinInfoOpen = true },
                 )
             }
 
-            // Floating SPIN button. Only shown on the days the daily spin
-            // is available — keeps it out of the TopBar row entirely so
-            // long coin/word/level labels never get squished by it.
-            if (game.canSpinToday(today)) {
-                FloatingSpinButton(
-                    onClick = { spinDialogOpen = true },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 24.dp),
-                )
-            }
-
-            // Floating help button — bottom-left, smaller than the SPIN
-            // button. Pulled out of the TopBar so the TopBar's level/words
-            // labels have room to breathe.
+            // Bottom row of floating buttons: help (left), SPIN (centre,
+            // when available), hint (right). Hint and SPIN swapped from
+            // their previous positions — hint is the primary in-game
+            // action, so it gets the thumb-friendly bottom-right; SPIN
+            // is occasional / daily, so it goes centre.
             FloatingHelpButton(
                 onClick = { helpOpen = true },
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 14.dp, bottom = 26.dp),
+                    .padding(start = 14.dp, bottom = 24.dp),
+            )
+
+            if (game.canSpinToday(today)) {
+                FloatingSpinButton(
+                    onClick = { spinDialogOpen = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 12.dp),
+                )
+            }
+
+            FloatingHintButton(
+                hintsLeft = game.hintsLeft,
+                wordsTowardHint = game.wordsTowardHint,
+                coins = game.coins,
+                onHint = {
+                    status = game.hintRevealRandomLetter()
+                    playForStatus(status)
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 14.dp, bottom = 12.dp),
             )
         }
 
@@ -357,6 +372,13 @@ fun GameScreen() {
                 },
             )
         }
+
+        if (coinInfoOpen) {
+            CoinInfoDialog(
+                coins = game.coins,
+                onDismiss = { coinInfoOpen = false },
+            )
+        }
     }
 }
 
@@ -371,8 +393,8 @@ private fun PortraitContent(
     spec: Spec,
     onSubmitWheel: () -> Unit,
     onShuffle: () -> Unit,
-    onHint: () -> Unit,
     onSettingsClick: () -> Unit,
+    onCoinClick: () -> Unit,
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -405,6 +427,7 @@ private fun PortraitContent(
                         total = game.answers.size,
                         level = level,
                         streak = streak,
+                        onCoinClick = onCoinClick,
                     )
                 }
                 Spacer(Modifier.width(8.dp))
@@ -440,28 +463,27 @@ private fun PortraitContent(
             // Word history sits BELOW the wheel as a compact strip.
             RecentAttemptsRow(attempts = game.recentAttempts)
 
-            BottomButtons(
-                hintsLeft = game.hintsLeft,
-                wordsTowardHint = game.wordsTowardHint,
-                onHint = onHint,
-            )
+            // Reserve room at the bottom of the column for the row of
+            // floating buttons (help / SPIN / hint) so they don't overlap
+            // the chip strip above. 80 dp ≈ floating disc 64 + caption 4
+            // + bottom padding 24 - some overlap, balanced against
+            // not eating wheel real estate.
+            Spacer(Modifier.height(FloatingButtonReserveHeight))
         }
 
         // Status notification — pure overlay, NEVER part of the column
-        // flow. The previous "in-flow" placement made the grid resize
-        // every time a status pill popped in (real-device feedback flagged
-        // this as the most jarring bug). Now it floats above the wheel
-        // top edge at a fixed offset from the bottom, so the grid stays
-        // rock-steady regardless of whether status is showing.
+        // flow. Floats just above the wheel's top edge at a fixed offset
+        // from the bottom, so the grid stays rock-steady regardless of
+        // whether status is showing.
         StatusOverlay(
             status = status,
             fontSp = spec.statusFontSp,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                // Stack from the bottom: BottomButtons (~90 — hint disc 78
-                // + progress bar) + recent (18) + wheel + 8 buffer. Keeps
-                // status visually just above the wheel's top edge.
-                .padding(bottom = wheelSize + RecentAttemptsSlotHeight + 90.dp + 8.dp)
+                // Stack from the bottom: floating-buttons reserve + recent
+                // strip + wheel + 8 buffer. Keeps status visually just
+                // above the wheel's top edge.
+                .padding(bottom = wheelSize + RecentAttemptsSlotHeight + FloatingButtonReserveHeight + 8.dp)
                 .zIndex(2f),
         )
     }
@@ -478,8 +500,8 @@ private fun LandscapeContent(
     spec: Spec,
     onSubmitWheel: () -> Unit,
     onShuffle: () -> Unit,
-    onHint: () -> Unit,
     onSettingsClick: () -> Unit,
+    onCoinClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -500,6 +522,7 @@ private fun LandscapeContent(
                     total = game.answers.size,
                     level = level,
                     streak = streak,
+                    onCoinClick = onCoinClick,
                 )
             }
             // Help + SPIN moved to floating buttons — see PortraitContent.
@@ -563,11 +586,9 @@ private fun LandscapeContent(
                 // PortraitContent), so the player's eye stays in the
                 // same area where they just submitted.
                 RecentAttemptsRow(attempts = game.recentAttempts)
-                BottomButtons(
-                    hintsLeft = game.hintsLeft,
-                    wordsTowardHint = game.wordsTowardHint,
-                    onHint = onHint,
-                )
+                // Reserve space for the floating button row at the bottom
+                // (matches PortraitContent layout).
+                Spacer(Modifier.height(FloatingButtonReserveHeight))
             }
         }
         }  // end Column
@@ -591,21 +612,24 @@ private fun LandscapeContent(
 // remaining vertical space, so any slot whose height varies frame-to-frame
 // would resize the wheel as the player types or as a status message
 // appears. Reserving a constant height per slot keeps the wheel rock-solid.
-private val WordPreviewSlotHeight = 22.dp
-// StatusSlotHeight removed — status now renders as an absolute overlay
-// (see PortraitContent / LandscapeContent), so it never reserves space
-// in the column and never resizes the grid.
-// Compact strip — sits under the wheel, not above it.
-private val RecentAttemptsSlotHeight = 18.dp
+// 26 dp fits a 16 sp pill with 2 dp vertical padding (text natural
+// ~19 dp + 4 dp pad = 23 dp), with breathing room.
+private val WordPreviewSlotHeight = 26.dp
+// StatusSlotHeight removed — status now renders as an absolute overlay.
+// 24 dp fits a 12 sp chip with 3 dp vertical padding cleanly.
+private val RecentAttemptsSlotHeight = 24.dp
 private const val RECENT_ATTEMPTS_SHOWN = 3
+// Floating button row at the bottom — help (left), SPIN (centre, when
+// available), hint (right) — sits OVER this much space. The column
+// reserves a Spacer of this height so chips above don't slide under
+// the buttons. 80 dp = 64 dp disc + ~16 dp visual margin.
+private val FloatingButtonReserveHeight = 80.dp
 
 @Composable
 private fun WordPreview(text: String) {
-    // Pill must fit inside WordPreviewSlotHeight (22 dp). Earlier the
-    // pill's natural height was ~40 dp (20 sp text + 8 dp vertical
-    // padding × 2), overflowing the slot, so the wheel below was
-    // painting on top of it during the drag. New numbers: 16 sp text
-    // + 2 dp padding = ~22 dp, sits inside the slot cleanly.
+    // Pill (16 sp text, ~23 dp natural) sits cleanly inside the 26 dp
+    // WordPreviewSlotHeight defined above. Earlier the pill at 20 sp
+    // + 8 dp padding overflowed and the wheel painted on top of it.
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -707,15 +731,15 @@ private fun AttemptChip(attempt: com.wheelword.game.Attempt) {
     }
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(9.dp))
             .background(bg)
-            .padding(horizontal = 7.dp, vertical = 2.dp),
+            .padding(horizontal = 8.dp, vertical = 3.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = attempt.word,
             color = fg,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             textDecoration = decoration,
         )
@@ -799,5 +823,100 @@ private fun FloatingHelpButton(onClick: () -> Unit, modifier: Modifier = Modifie
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
         )
+    }
+}
+
+/**
+ * Bottom-right anchored hint button. Mirrors the layout of the in-flow
+ * BottomButtons.HintButton (gold disc + count badge + progress bar) but
+ * lives as a floating overlay so it doesn't reserve column space —
+ * which means the wheel and chip strip get to claim everything above
+ * the floating-button row.
+ */
+@Composable
+private fun FloatingHintButton(
+    hintsLeft: Int,
+    wordsTowardHint: Int,
+    coins: Int,
+    onHint: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val canBuyWithCoins = hintsLeft == 0 && coins >= com.wheelword.game.HINT_COIN_COST
+    val available = hintsLeft > 0 || canBuyWithCoins
+
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(modifier = Modifier.size(78.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .align(Alignment.BottomStart)
+                    .shadow(elevation = 6.dp, shape = CircleShape)
+                    .clip(CircleShape)
+                    .background(
+                        if (available) Color(0xFFFFB400)  // gold = clickable
+                        else Color(0xB4282828)            // gray = unaffordable
+                    )
+                    .clickable(onClick = onHint),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "💡",
+                    fontSize = 28.sp,
+                )
+            }
+            // Count badge: green digit when free hints remain; gold
+            // "50" when the player can buy with coins; muted "50" when
+            // they can't (still tappable so they get the "Need X coins"
+            // toast).
+            val badgeBg = when {
+                hintsLeft > 0 -> Color(0xFF32B450)            // green
+                canBuyWithCoins -> Color(0xFFFFB400)          // gold (purchasable)
+                else -> Color(0xFF787878)                     // gray (can't afford)
+            }
+            val badgeText: String = if (hintsLeft > 0) hintsLeft.toString()
+                                    else com.wheelword.game.HINT_COIN_COST.toString()
+            // Slightly smaller font when showing the price so two
+            // digits fit comfortably inside the 28 dp ring.
+            val badgeFont = if (hintsLeft > 0) 14.sp else 12.sp
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .shadow(elevation = 4.dp, shape = CircleShape)
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(badgeBg)
+                    .border(width = 2.5.dp, color = Color.White, shape = CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = badgeText,
+                    color = Color.White,
+                    fontSize = badgeFont,
+                    fontWeight = FontWeight.Black,
+                )
+            }
+        }
+        // Progress toward the next free hint (every 10 words found).
+        Box(
+            modifier = Modifier
+                .padding(top = 3.dp)
+                .width(72.dp)
+                .height(5.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color(0xFF28283C)),
+        ) {
+            val progress = (wordsTowardHint.coerceAtMost(10)) / 10f
+            if (progress > 0f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(progress)
+                        .background(Color(0xFF50DC78)),
+                )
+            }
+        }
     }
 }

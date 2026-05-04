@@ -16,6 +16,13 @@ private let recentAttemptsCap = 5
 /// tractable. 50 is a starting value — tune from playtesting.
 private let dictBonusCoinCap = 50
 
+/// Cost in coins to reveal one hint when the player's free-hint pool
+/// is exhausted (`hintsLeft == 0`). Lets cash-rich players keep
+/// advancing without waiting for the next free hint to accrue.
+/// Surfaced as a top-level `let` (not `private`) so the UI can read
+/// it directly.
+let HINT_COIN_COST = 50
+
 /// Single-level game state. An `ObservableObject` so SwiftUI views update
 /// automatically when `@Published` properties change — analogous to Compose's
 /// `mutableStateOf` on the Kotlin side.
@@ -221,8 +228,16 @@ final class GameState: ObservableObject {
     }
 
     func hintRevealRandomLetter() -> String {
-        if hintsLeft == 0 {
-            return "No hints left! Find more words to earn hints."
+        // Three states:
+        //   1. hintsLeft > 0           → use one free hint
+        //   2. hintsLeft == 0,
+        //      coins  >= HINT_COIN_COST → buy a hint with coins
+        //   3. hintsLeft == 0,
+        //      coins  <  HINT_COIN_COST → not enough; bail with msg
+        let canUseFree = hintsLeft > 0
+        let canBuyWithCoins = !canUseFree && coins >= HINT_COIN_COST
+        if !canUseFree && !canBuyWithCoins {
+            return "Need \(HINT_COIN_COST) coins to buy a hint."
         }
         let visible = visibleLetters()
         let candidates = usedCells.filter { visible[$0] == nil }
@@ -230,9 +245,14 @@ final class GameState: ObservableObject {
               let ch = level.solutionLetter(row: pick.row, col: pick.col)
         else { return candidates.isEmpty ? "No letters left to reveal." : "Hint failed." }
         revealed[pick] = ch
-        hintsLeft -= 1
+        if canUseFree {
+            hintsLeft -= 1
+        } else {
+            coins -= HINT_COIN_COST
+        }
         persist()
-        return "Revealed a letter!"
+        return canUseFree ? "Revealed a letter!"
+                          : "Bought a hint (-\(HINT_COIN_COST))"
     }
 
     // MARK: - Snapshot / restore
