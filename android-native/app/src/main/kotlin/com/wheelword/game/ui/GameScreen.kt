@@ -41,11 +41,6 @@ private data class Spec(
     val gapAfterWord: Dp,
     val gapBeforeButtons: Dp,
     val statusFontSp: Int,
-    // Cap the grid at ~34% of column height in portrait so the wheel,
-    // which uses leftover space, stays the dominant element. Without
-    // this, a 9x9 grid eats most of the column on later levels and the
-    // wheel shrinks to ~200dp. Landscape (side-by-side) needs no cap.
-    val gridMaxHeight: Dp,
 )
 
 private fun specFor(width: Dp, height: Dp, landscape: Boolean): Spec {
@@ -53,13 +48,12 @@ private fun specFor(width: Dp, height: Dp, landscape: Boolean): Spec {
     val compact = height < 680.dp || (landscape && height < 420.dp)
     return Spec(
         outerH = if (short < 360.dp) 8.dp else 12.dp,
-        outerV = if (compact) 12.dp else 24.dp,
-        gapAfterTopBar = if (compact) 8.dp else 16.dp,
-        gapAfterGrid = if (compact) 8.dp else 14.dp,
-        gapAfterWord = if (compact) 4.dp else 6.dp,
-        gapBeforeButtons = if (compact) 4.dp else 8.dp,
+        outerV = if (compact) 10.dp else 18.dp,
+        gapAfterTopBar = if (compact) 8.dp else 14.dp,
+        gapAfterGrid = if (compact) 6.dp else 10.dp,
+        gapAfterWord = if (compact) 2.dp else 4.dp,
+        gapBeforeButtons = if (compact) 4.dp else 6.dp,
         statusFontSp = if (short < 360.dp) 13 else 15,
-        gridMaxHeight = if (landscape) Dp.Unspecified else (height * 0.34f),
     )
 }
 
@@ -232,7 +226,6 @@ fun GameScreen() {
                 onShuffle = { game.shuffleTiles() },
                 onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
                 onSettingsClick = { settingsOpen = true },
-                onHelpClick = { helpOpen = true },
             )
         } else {
             PortraitContent(
@@ -249,7 +242,6 @@ fun GameScreen() {
                 onShuffle = { game.shuffleTiles() },
                 onHint = { status = game.hintRevealRandomLetter(); playForStatus(status) },
                 onSettingsClick = { settingsOpen = true },
-                onHelpClick = { helpOpen = true },
             )
         }
 
@@ -264,6 +256,17 @@ fun GameScreen() {
                     .padding(end = 16.dp, bottom = 24.dp),
             )
         }
+
+        // Floating help button — bottom-left, smaller than the SPIN
+        // button. Pulled out of the TopBar so the TopBar's level/words
+        // labels have room to breathe (otherwise "Lv.2" wraps to a
+        // vertical glyph stack on narrow widths).
+        FloatingHelpButton(
+            onClick = { helpOpen = true },
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 14.dp, bottom = 26.dp),
+        )
 
         if (spinDialogOpen) {
             SpinWheelDialog(
@@ -352,60 +355,68 @@ private fun PortraitContent(
     onShuffle: () -> Unit,
     onHint: () -> Unit,
     onSettingsClick: () -> Unit,
-    onHelpClick: () -> Unit,
 ) {
-    Column(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = spec.outerH, vertical = spec.outerV),
-        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
+        // Wheel size is locked to a screen-width fraction — *not* derived
+        // from "leftover" Column space — so it never shrinks when the
+        // grid grows for harder levels. The minOf vs height keeps it
+        // sane on landscape-ish or short windows; the coerceIn ensures
+        // a usable floor on tiny phones and a sensible ceiling on tablets.
+        val wheelSize = minOf(maxWidth * 0.92f, maxHeight * 0.42f)
+            .coerceIn(280.dp, 480.dp)
+
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(modifier = Modifier.weight(1f)) {
-                TopBar(
-                    coins = game.coins,
-                    found = game.found.size,
-                    total = game.answers.size,
-                    level = level,
-                    streak = streak,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    TopBar(
+                        coins = game.coins,
+                        found = game.found.size,
+                        total = game.answers.size,
+                        level = level,
+                        streak = streak,
+                    )
+                }
+                // Help moved to a floating button bottom-left (see below).
+                // SPIN is also a floating button. Keeping the TopBar row
+                // to {labels + settings} only stops the labels from getting
+                // squeezed into vertical glyph stacks.
+                Spacer(Modifier.width(8.dp))
+                SettingsIconButton(onClick = onSettingsClick)
+            }
+            Spacer(Modifier.height(spec.gapAfterTopBar))
+
+            // Grid takes the leftover vertical space ABOVE the wheel.
+            // Capped maxHeight removed — the wheel is now fixed, so the
+            // grid no longer competes for it.
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CrosswordGrid(
+                    level = game.level,
+                    visible = game.visibleLettersMap(),
+                    usedCells = game.usedCells,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
                 )
             }
-            // SPIN moved to a floating button so it never squishes the
-            // coin / word / level labels inside the TopBar row.
-            Spacer(Modifier.width(8.dp))
-            HelpIconButton(onClick = onHelpClick)
-            Spacer(Modifier.width(8.dp))
-            SettingsIconButton(onClick = onSettingsClick)
-        }
-        Spacer(Modifier.height(spec.gapAfterTopBar))
 
-        CrosswordGrid(
-            level = game.level,
-            visible = game.visibleLettersMap(),
-            usedCells = game.usedCells,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
-            maxHeight = spec.gridMaxHeight,
-        )
-        Spacer(Modifier.height(spec.gapAfterGrid))
+            WordPreview(text = game.currentWord())
+            StatusBubble(status = status, fontSp = spec.statusFontSp)
 
-        WordPreview(text = game.currentWord())
-        Spacer(Modifier.height(spec.gapAfterWord))
-
-        StatusBubble(status = status, fontSp = spec.statusFontSp)
-        RecentAttemptsRow(attempts = game.recentAttempts)
-
-        BoxWithConstraints(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentAlignment = Alignment.Center,
-        ) {
-            val wheelSize = minOf(this.maxWidth, this.maxHeight)
             LetterWheel(
                 tiles = game.tiles,
                 selection = game.selection,
@@ -413,19 +424,22 @@ private fun PortraitContent(
                 onShuffle = onShuffle,
                 modifier = Modifier.size(wheelSize),
             )
+
+            // Word history sits BELOW the wheel as a compact strip — out
+            // of the wheel's way visually, easy to glance at after a
+            // submit, doesn't reserve screen real estate above the wheel.
+            RecentAttemptsRow(attempts = game.recentAttempts)
+
+            BottomButtons(
+                hintsLeft = game.hintsLeft,
+                wordsTowardHint = game.wordsTowardHint,
+                onHint = onHint,
+            )
+
+            // Always reserve the bonus row's height so finding a bonus
+            // word doesn't push the wheel up the screen mid-game.
+            BonusRow(found = game.bonusFound)
         }
-
-        Spacer(Modifier.height(spec.gapBeforeButtons))
-        BottomButtons(
-            hintsLeft = game.hintsLeft,
-            wordsTowardHint = game.wordsTowardHint,
-            onHint = onHint,
-        )
-
-        // Always reserve the bonus row's height so finding a bonus word
-        // doesn't push the wheel up the screen mid-game.
-        Spacer(Modifier.height(4.dp))
-        BonusRow(found = game.bonusFound)
     }
 }
 
@@ -442,7 +456,6 @@ private fun LandscapeContent(
     onShuffle: () -> Unit,
     onHint: () -> Unit,
     onSettingsClick: () -> Unit,
-    onHelpClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -462,9 +475,7 @@ private fun LandscapeContent(
                     streak = streak,
                 )
             }
-            // SPIN moved to a floating button — see PortraitContent.
-            Spacer(Modifier.width(8.dp))
-            HelpIconButton(onClick = onHelpClick)
+            // Help + SPIN moved to floating buttons — see PortraitContent.
             Spacer(Modifier.width(8.dp))
             SettingsIconButton(onClick = onSettingsClick)
         }
@@ -494,12 +505,11 @@ private fun LandscapeContent(
                 WordPreview(text = game.currentWord())
                 Spacer(Modifier.height(spec.gapAfterWord))
                 StatusBubble(status = status, fontSp = spec.statusFontSp)
-                RecentAttemptsRow(attempts = game.recentAttempts)
             }
 
             Spacer(Modifier.width(16.dp))
 
-            // Right: wheel + buttons
+            // Right: wheel + buttons + history
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -522,15 +532,15 @@ private fun LandscapeContent(
                         modifier = Modifier.size(wheelSize),
                     )
                 }
-                Spacer(Modifier.height(spec.gapBeforeButtons))
+                // History strip lives directly under the wheel (matches
+                // PortraitContent), so the player's eye stays in the
+                // same area where they just submitted.
+                RecentAttemptsRow(attempts = game.recentAttempts)
                 BottomButtons(
                     hintsLeft = game.hintsLeft,
                     wordsTowardHint = game.wordsTowardHint,
                     onHint = onHint,
                 )
-                // Always reserve the bonus row's height so finding a
-                // bonus word doesn't reflow the wheel column.
-                Spacer(Modifier.height(4.dp))
                 BonusRow(found = game.bonusFound)
             }
         }
@@ -543,10 +553,12 @@ private fun LandscapeContent(
 // remaining vertical space, so any slot whose height varies frame-to-frame
 // would resize the wheel as the player types or as a status message
 // appears. Reserving a constant height per slot keeps the wheel rock-solid.
-private val WordPreviewSlotHeight = 40.dp
-private val StatusSlotHeight = 32.dp
+private val WordPreviewSlotHeight = 36.dp
+private val StatusSlotHeight = 26.dp
 private val BonusRowSlotHeight = 22.dp
-private val RecentAttemptsSlotHeight = 32.dp
+// Compact strip — half the original 32dp. Sitting under the wheel,
+// not above it, so the player's eye stays where they last tapped.
+private val RecentAttemptsSlotHeight = 24.dp
 private const val RECENT_ATTEMPTS_SHOWN = 3
 
 @Composable
@@ -652,15 +664,15 @@ private fun AttemptChip(attempt: com.wheelword.game.Attempt) {
     }
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(bg)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
+            .padding(horizontal = 7.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = attempt.word,
             color = fg,
-            fontSize = 13.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold,
             textDecoration = decoration,
         )
@@ -750,18 +762,21 @@ private fun SettingsIconButton(onClick: () -> Unit) {
 }
 
 @Composable
-private fun HelpIconButton(onClick: () -> Unit) {
+private fun FloatingHelpButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    // Bottom-left anchored. Smaller than the FAB-style SPIN button on
+    // the right because help is reference info, not a primary action.
     Box(
-        modifier = Modifier
+        modifier = modifier
+            .size(32.dp)
             .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(Color(0x40FFFFFF))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .background(Color(0x99000000))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = "?",
             color = Color.White,
-            fontSize = 22.sp,
+            fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
         )
     }

@@ -174,6 +174,16 @@ struct GameScreen: View {
                                alignment: .bottomTrailing)
                 }
 
+                // Floating help — bottom-left, smaller than SPIN. Pulled
+                // out of the TopBar so the level / words labels have
+                // room to breathe (otherwise "Lv.2" was wrapping into a
+                // vertical glyph stack on narrow widths).
+                floatingHelpButton
+                    .padding(.leading, 14)
+                    .padding(.bottom, 26)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity,
+                           alignment: .bottomLeading)
+
                 if game.isComplete && pendingDifficultyTier == nil {
                     CompletionDialog(
                         isLastLevel: game.levelNum >= Level.totalLevels,
@@ -196,16 +206,9 @@ struct GameScreen: View {
                 TopBar(coins: game.coins, found: game.found.count,
                        total: game.answers.count, level: game.levelNum,
                        streak: game.currentStreak)
-                // SPIN moved to a floating button so it never squishes
-                // the coin / word / level labels inside the TopBar row.
-                Button(action: { helpOpen = true }) {
-                    Text("?")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 38, height: 38)
-                        .background(Circle().fill(Color.white.opacity(0.25)))
-                }
-                .buttonStyle(.plain)
+                // Help + SPIN moved to floating buttons (see ZStack
+                // overlay). Keeping the TopBar to {labels + settings}
+                // only stops the labels from getting squeezed.
                 Button(action: { settingsOpen = true }) {
                     Text("⚙")
                         .font(.system(size: 22))
@@ -217,36 +220,35 @@ struct GameScreen: View {
             }
             Spacer().frame(height: spec.gapAfterTopBar)
 
+            // Grid takes the leftover vertical space ABOVE the wheel.
+            // No more height cap — the wheel is now a fixed absolute size,
+            // so the grid no longer competes for it.
             CrosswordGrid(level: game.level, visible: game.visibleLetters(),
                           usedCells: game.usedCells)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .aspectRatio(CGFloat(game.level.cols) / CGFloat(game.level.rows), contentMode: .fit)
-                .frame(maxHeight: spec.gridMaxHeight)
             Spacer().frame(height: spec.gapAfterGrid)
 
             wordPreview
             Spacer().frame(height: spec.gapAfterWord)
             statusBubble(spec: spec)
+
+            // Wheel is a hard-locked square — same size regardless of
+            // level / grid size / current word length.
+            LetterWheel(tiles: game.tiles, selection: $game.selection,
+                        onSubmit: handleWheelSubmit, onShuffle: { game.shuffleTiles() })
+                .frame(width: spec.wheelSize, height: spec.wheelSize)
+
+            // History strip directly under the wheel — out of the
+            // wheel's way visually, easy to glance at after a submit.
             recentAttemptsRow
 
-            Spacer(minLength: 0)
-            GeometryReader { box in
-                let side = min(box.size.width, box.size.height)
-                LetterWheel(tiles: game.tiles, selection: $game.selection,
-                            onSubmit: handleWheelSubmit, onShuffle: { game.shuffleTiles() })
-                    .frame(width: side, height: side)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            Spacer(minLength: 0)
-
-            Spacer().frame(height: spec.gapBeforeButtons)
             BottomButtons(hintsLeft: game.hintsLeft,
                           wordsTowardHint: game.wordsTowardHint,
                           onHint: handleHint)
 
             // Always reserve the bonus row's height so finding a bonus
             // word doesn't reflow the wheel column.
-            Spacer().frame(height: 4)
             bonusRow
         }
         .padding(.horizontal, spec.outerH)
@@ -262,16 +264,9 @@ struct GameScreen: View {
                 TopBar(coins: game.coins, found: game.found.count,
                        total: game.answers.count, level: game.levelNum,
                        streak: game.currentStreak)
-                // SPIN moved to a floating button so it never squishes
-                // the coin / word / level labels inside the TopBar row.
-                Button(action: { helpOpen = true }) {
-                    Text("?")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 38, height: 38)
-                        .background(Circle().fill(Color.white.opacity(0.25)))
-                }
-                .buttonStyle(.plain)
+                // Help + SPIN moved to floating buttons (see ZStack
+                // overlay). Keeping the TopBar to {labels + settings}
+                // only stops the labels from getting squeezed.
                 Button(action: { settingsOpen = true }) {
                     Text("⚙")
                         .font(.system(size: 22))
@@ -294,20 +289,16 @@ struct GameScreen: View {
                     wordPreview
                     Spacer().frame(height: spec.gapAfterWord)
                     statusBubble(spec: spec)
-                    recentAttemptsRow
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity)
 
-                // Right column: wheel + buttons
+                // Right column: wheel + history (under wheel) + buttons
                 VStack(spacing: 0) {
-                    GeometryReader { box in
-                        let side = min(box.size.width, box.size.height)
-                        LetterWheel(tiles: game.tiles, selection: $game.selection,
-                                    onSubmit: handleWheelSubmit, onShuffle: { game.shuffleTiles() })
-                            .frame(width: side, height: side)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
+                    LetterWheel(tiles: game.tiles, selection: $game.selection,
+                                onSubmit: handleWheelSubmit, onShuffle: { game.shuffleTiles() })
+                        .frame(width: spec.wheelSize, height: spec.wheelSize)
+                    recentAttemptsRow
                     Spacer().frame(height: spec.gapBeforeButtons)
                     BottomButtons(hintsLeft: game.hintsLeft,
                                   wordsTowardHint: game.wordsTowardHint,
@@ -331,10 +322,12 @@ struct GameScreen: View {
     // varies frame-to-frame would resize the wheel as the player types
     // or as a status message appears. Reserving a constant height per
     // slot keeps the wheel rock-solid.
-    private static let wordPreviewSlotHeight: CGFloat = 40
-    private static let statusSlotHeight: CGFloat = 32
+    private static let wordPreviewSlotHeight: CGFloat = 36
+    private static let statusSlotHeight: CGFloat = 26
     private static let bonusRowSlotHeight: CGFloat = 22
-    private static let recentAttemptsSlotHeight: CGFloat = 32
+    // Compact strip — half the original 32pt. Sitting under the wheel,
+    // not above it, so the player's eye stays where they last tapped.
+    private static let recentAttemptsSlotHeight: CGFloat = 24
     private static let recentAttemptsShown = 3
 
     @ViewBuilder private var wordPreview: some View {
@@ -396,7 +389,7 @@ struct GameScreen: View {
     @ViewBuilder private var recentAttemptsRow: some View {
         ZStack {
             if !game.recentAttempts.isEmpty {
-                HStack(spacing: 6) {
+                HStack(spacing: 4) {
                     ForEach(game.recentAttempts.prefix(Self.recentAttemptsShown)) { a in
                         attemptChip(a)
                     }
@@ -415,11 +408,25 @@ struct GameScreen: View {
     private func attemptChip(_ a: Attempt) -> some View {
         let style = chipStyle(for: a.result)
         return Text(a.word)
-            .font(.system(size: 13, weight: .semibold))
+            .font(.system(size: 11, weight: .semibold))
             .foregroundColor(style.fg)
             .strikethrough(style.strike, color: style.fg)
-            .padding(.horizontal, 10).padding(.vertical, 4)
-            .background(RoundedRectangle(cornerRadius: 10).fill(style.bg))
+            .padding(.horizontal, 7).padding(.vertical, 2)
+            .background(RoundedRectangle(cornerRadius: 8).fill(style.bg))
+    }
+
+    /// Compact help button — bottom-left anchored, smaller than the SPIN
+    /// FAB on the right because help is reference info, not a primary
+    /// action.
+    @ViewBuilder private var floatingHelpButton: some View {
+        Button(action: { helpOpen = true }) {
+            Text("?")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: 32, height: 32)
+                .background(Circle().fill(Color.black.opacity(0.6)))
+        }
+        .buttonStyle(.plain)
     }
 
     private func chipStyle(for result: AttemptResult) -> (bg: Color, fg: Color, strike: Bool) {
@@ -509,23 +516,24 @@ private struct Spec {
     let gapAfterWord: CGFloat
     let gapBeforeButtons: CGFloat
     let statusFontSp: Int
-    // Cap the grid at ~34% of column height in portrait so the wheel,
-    // which uses leftover space, stays the dominant element. nil = no
-    // cap (landscape uses a side-by-side layout instead).
-    let gridMaxHeight: CGFloat?
+    // Wheel side length is locked to a fraction of screen size so it
+    // never shrinks when the grid grows for harder levels. Computed
+    // once per layout pass from the screen size.
+    let wheelSize: CGFloat
 }
 
 private func spec(for size: CGSize, landscape: Bool) -> Spec {
     let short = min(size.width, size.height)
     let compact = size.height < 680 || (landscape && size.height < 420)
+    let wheelSide = min(size.width * 0.92, size.height * 0.42)
     return Spec(
         outerH: short < 360 ? 8 : 12,
-        outerV: compact ? 12 : 24,
-        gapAfterTopBar: compact ? 8 : 16,
-        gapAfterGrid: compact ? 8 : 14,
-        gapAfterWord: compact ? 4 : 6,
-        gapBeforeButtons: compact ? 4 : 8,
+        outerV: compact ? 10 : 18,
+        gapAfterTopBar: compact ? 8 : 14,
+        gapAfterGrid: compact ? 6 : 10,
+        gapAfterWord: compact ? 2 : 4,
+        gapBeforeButtons: compact ? 4 : 6,
         statusFontSp: short < 360 ? 13 : 15,
-        gridMaxHeight: landscape ? nil : size.height * 0.34,
+        wheelSize: max(280, min(wheelSide, 480)),
     )
 }

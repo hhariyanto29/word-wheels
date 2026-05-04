@@ -32,23 +32,27 @@ import com.wheelword.game.theme.GameColors
  *  before. Drawn entirely in Compose so we don't need a drawable
  *  resource and it scales cleanly on every density. */
 @Composable
-private fun CoinIcon(modifier: Modifier = Modifier, size: Int = 22) {
+private fun CoinIcon(modifier: Modifier = Modifier, size: Int = 24) {
+    // Cleaner two-tone coin: gold outer disc with a thin warm border, a
+    // bright cream star centred on top. Earlier the inner star was dark
+    // brown over the gold gradient — at 22dp the contrast read as muddy
+    // on real devices. White-on-gold pops better.
     Box(
         modifier = modifier
             .size(size.dp)
             .clip(CircleShape)
             .background(
                 Brush.linearGradient(
-                    colors = listOf(Color(0xFFFFE070), Color(0xFFFFAA00)),
+                    colors = listOf(Color(0xFFFFE070), Color(0xFFFFB020)),
                 )
             )
-            .border(width = 2.dp, color = Color(0xFF8B5A00), shape = CircleShape),
+            .border(width = 1.5.dp, color = Color(0xFFB37400), shape = CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = "★",
-            color = Color(0xFF8B5A00),
-            fontSize = (size * 0.6f).sp,
+            color = Color.White,
+            fontSize = (size * 0.62f).sp,
             fontWeight = FontWeight.Black,
         )
     }
@@ -138,7 +142,9 @@ fun TopBar(coins: Int, found: Int, total: Int, level: Int, streak: Int = 0) {
 
         Spacer(Modifier.weight(1f))
 
-        // Level badge
+        // Level badge. softWrap=false + maxLines=1 prevents the vertical
+        // letter-stack glitch ("L / V / . / 2") that appeared when the
+        // help icon was previously stealing horizontal room from the row.
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(14.dp))
@@ -150,6 +156,8 @@ fun TopBar(coins: Int, found: Int, total: Int, level: Int, streak: Int = 0) {
                 color = Color.White,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                softWrap = false,
             )
         }
     }
