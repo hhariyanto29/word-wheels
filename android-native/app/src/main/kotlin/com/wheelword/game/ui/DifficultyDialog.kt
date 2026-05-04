@@ -1,4 +1,4 @@
-package com.wordwheel.game.ui
+package com.wheelword.game.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,8 +15,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wordwheel.game.Difficulty
-import com.wordwheel.game.theme.GameColors
+import com.wheelword.game.Difficulty
+import com.wheelword.game.theme.GameColors
 
 /**
  * Modal banner shown after the player completes a milestone level

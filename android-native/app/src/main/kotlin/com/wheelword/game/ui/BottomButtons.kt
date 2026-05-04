@@ -1,4 +1,4 @@
-package com.wordwheel.game.ui
+package com.wheelword.game.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

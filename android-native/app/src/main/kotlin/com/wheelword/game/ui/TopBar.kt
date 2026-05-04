@@ -1,4 +1,4 @@
-package com.wordwheel.game.ui
+package com.wheelword.game.ui
 
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateIntAsState
@@ -25,7 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wordwheel.game.theme.GameColors
+import com.wheelword.game.theme.GameColors
 
 /** Layered coin glyph. Two concentric circles + a centred star give a
  *  more "game-y" point-counter than the plain green disc that came

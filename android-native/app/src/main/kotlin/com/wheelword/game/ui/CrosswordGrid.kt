@@ -1,4 +1,4 @@
-package com.wordwheel.game.ui
+package com.wheelword.game.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -12,8 +12,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wordwheel.game.Level
-import com.wordwheel.game.theme.GameColors
+import com.wheelword.game.Level
+import com.wheelword.game.theme.GameColors
 
 /**
  * Renders the crossword grid. Cell size is derived from the parent's available

@@ -1,4 +1,4 @@
-package com.wordwheel.game.ui
+package com.wheelword.game.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -20,13 +20,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.wordwheel.game.GameState
-import com.wordwheel.game.Level
-import com.wordwheel.game.LocalGameStorage
-import com.wordwheel.game.R
-import com.wordwheel.game.audio.LocalSoundManager
-import com.wordwheel.game.audio.Sfx
-import com.wordwheel.game.theme.GameColors
+import com.wheelword.game.GameState
+import com.wheelword.game.Level
+import com.wheelword.game.LocalGameStorage
+import com.wheelword.game.R
+import com.wheelword.game.audio.LocalSoundManager
+import com.wheelword.game.audio.Sfx
+import com.wheelword.game.theme.GameColors
 
 /**
  * Spacing & sizing tunables derived from the available viewport. Centralising
@@ -98,7 +98,7 @@ fun GameScreen() {
     // to the player's coin count until the dialog dismisses — that
     // way the TopBar's count-up animation plays visibly afterwards.
     var pendingSpinReward by remember { mutableStateOf<SpinSector?>(null) }
-    var pendingDifficultyTier by remember { mutableStateOf<com.wordwheel.game.Difficulty?>(null) }
+    var pendingDifficultyTier by remember { mutableStateOf<com.wheelword.game.Difficulty?>(null) }
     var pendingNextLevel by remember { mutableStateOf<Int?>(null) }
     var settingsOpen by remember { mutableStateOf(false) }
     // App opens on the home screen; tap "LEVEL X" to enter the puzzle.
@@ -285,7 +285,7 @@ fun GameScreen() {
                     val next = if (completed >= Level.TOTAL_LEVELS) 1 else completed + 1
                     // If this was a tier-boundary level, show the difficulty
                     // banner first; the player advances after dismissing it.
-                    val tier = com.wordwheel.game.Difficulty.milestoneFor(completed)
+                    val tier = com.wheelword.game.Difficulty.milestoneFor(completed)
                     if (tier != null) {
                         pendingDifficultyTier = tier
                         // Stage the level transition until the banner closes.

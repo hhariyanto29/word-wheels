@@ -1,4 +1,4 @@
-package com.wordwheel.game
+package com.wheelword.game
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -7,11 +7,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.wordwheel.game.audio.LocalSoundManager
-import com.wordwheel.game.audio.SoundManager
-import com.wordwheel.game.storage.GameStorage
-import com.wordwheel.game.theme.WordWheelTheme
-import com.wordwheel.game.ui.GameScreen
+import com.wheelword.game.audio.LocalSoundManager
+import com.wheelword.game.audio.SoundManager
+import com.wheelword.game.storage.GameStorage
+import com.wheelword.game.theme.WordWheelTheme
+import com.wheelword.game.ui.GameScreen
 
 val LocalGameStorage = staticCompositionLocalOf<GameStorage?> { null }
 
