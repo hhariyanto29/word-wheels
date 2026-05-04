@@ -34,7 +34,7 @@ fun BottomButtons(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
@@ -45,13 +45,13 @@ fun BottomButtons(
 @Composable
 private fun HintButton(hintsLeft: Int, wordsTowardHint: Int, onHint: () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // Outer container is sized so the count badge sits beyond the
-        // 64dp button's edge — that way the digit is fully outside the
-        // gold disc instead of getting visually swallowed by it.
-        // 84dp gives ~10dp on each side for the 28dp badge to claim
-        // its own space at the top-right corner.
+        // Outer container snug against the 64dp gold disc — 78dp leaves
+        // just enough room for the 28dp count badge at the top-right
+        // corner with the badge sitting tight against the disc edge.
+        // 84dp (the previous value) had ~10dp of awkward gap that read
+        // as detached from the button.
         Box(
-            modifier = Modifier.size(84.dp),
+            modifier = Modifier.size(78.dp),
         ) {
             Box(
                 modifier = Modifier
@@ -98,9 +98,9 @@ private fun HintButton(hintsLeft: Int, wordsTowardHint: Int, onHint: () -> Unit)
         // Progress toward the next free hint (every 10 words found).
         Box(
             modifier = Modifier
-                .padding(top = 6.dp)
-                .width(80.dp)
-                .height(6.dp)
+                .padding(top = 3.dp)
+                .width(72.dp)
+                .height(5.dp)
                 .clip(RoundedCornerShape(3.dp))
                 .background(Color(0xFF28283C)),
         ) {

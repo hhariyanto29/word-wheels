@@ -193,7 +193,7 @@ struct GameScreen: View {
                 statusOverlay(spec: spec)
                     .padding(.bottom, spec.wheelSize
                              + Self.recentAttemptsSlotHeight
-                             + 50      // BottomButtons height
+                             + 90      // BottomButtons (hint disc 78 + progress bar)
                              + 12)     // visual buffer
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
                            alignment: .bottom)
@@ -338,14 +338,12 @@ struct GameScreen: View {
     // varies frame-to-frame would resize the wheel as the player types
     // or as a status message appears. Reserving a constant height per
     // slot keeps the wheel rock-solid.
-    private static let wordPreviewSlotHeight: CGFloat = 28
+    private static let wordPreviewSlotHeight: CGFloat = 22
     // statusSlotHeight removed — status now renders as an absolute
     // ZStack overlay (see puzzleBody) so it never participates in any
     // VStack flow. Grids and wheels stay the same size whether status
-    // is showing or not — that was the user's hard requirement after
-    // seeing the column reflow on real devices.
-    // Compact strip sits under the wheel.
-    private static let recentAttemptsSlotHeight: CGFloat = 22
+    // is showing or not.
+    private static let recentAttemptsSlotHeight: CGFloat = 18
     private static let recentAttemptsShown = 3
 
     @ViewBuilder private var wordPreview: some View {

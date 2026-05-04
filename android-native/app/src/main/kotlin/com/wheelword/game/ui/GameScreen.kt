@@ -454,10 +454,10 @@ private fun PortraitContent(
             fontSp = spec.statusFontSp,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                // Stack from the bottom: BottomButtons (~50) + 4 + recent (22)
-                // + wheel + 8 buffer. Keeps status visually just above the
-                // wheel's top edge regardless of grid height above.
-                .padding(bottom = wheelSize + RecentAttemptsSlotHeight + 50.dp + 8.dp)
+                // Stack from the bottom: BottomButtons (~90 — hint disc 78
+                // + progress bar) + recent (18) + wheel + 8 buffer. Keeps
+                // status visually just above the wheel's top edge.
+                .padding(bottom = wheelSize + RecentAttemptsSlotHeight + 90.dp + 8.dp)
                 .zIndex(2f),
         )
     }
@@ -587,12 +587,12 @@ private fun LandscapeContent(
 // remaining vertical space, so any slot whose height varies frame-to-frame
 // would resize the wheel as the player types or as a status message
 // appears. Reserving a constant height per slot keeps the wheel rock-solid.
-private val WordPreviewSlotHeight = 28.dp
+private val WordPreviewSlotHeight = 22.dp
 // StatusSlotHeight removed — status now renders as an absolute overlay
 // (see PortraitContent / LandscapeContent), so it never reserves space
 // in the column and never resizes the grid.
 // Compact strip — sits under the wheel, not above it.
-private val RecentAttemptsSlotHeight = 22.dp
+private val RecentAttemptsSlotHeight = 18.dp
 private const val RECENT_ATTEMPTS_SHOWN = 3
 
 @Composable
