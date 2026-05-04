@@ -163,38 +163,37 @@ struct GameScreen: View {
                     portraitContent(spec: spec)
                 }
 
-                // Floating SPIN button — pinned bottom-right so it
-                // never squishes the coin / word / level labels in
-                // the TopBar row. Hidden on days when the daily spin
-                // is no longer available.
-                if game.canSpinToday(today: todayEpochDay) {
-                    floatingSpinButton
-                        .padding(.trailing, 16)
-                        .padding(.bottom, 24)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity,
-                               alignment: .bottomTrailing)
-                }
-
-                // Floating help — bottom-left, smaller than SPIN. Pulled
-                // out of the TopBar so the level / words labels have
-                // room to breathe (otherwise "Lv.2" was wrapping into a
-                // vertical glyph stack on narrow widths).
+                // Bottom row of floating buttons: help (left), SPIN
+                // (centre, when available), hint (right). Hint takes
+                // the thumb-friendly bottom-right because it's the
+                // primary in-game action; SPIN moved to centre.
                 floatingHelpButton
                     .padding(.leading, 14)
-                    .padding(.bottom, 26)
+                    .padding(.bottom, 24)
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
                            alignment: .bottomLeading)
 
+                if game.canSpinToday(today: todayEpochDay) {
+                    floatingSpinButton
+                        .padding(.bottom, 12)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity,
+                               alignment: .bottom)
+                }
+
+                floatingHintButton
+                    .padding(.trailing, 14)
+                    .padding(.bottom, 12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity,
+                           alignment: .bottomTrailing)
+
                 // Status notification — pure overlay, NEVER part of any
                 // VStack flow. Positioned just above the wheel's top
-                // edge using a fixed offset from the bottom: wheel size
-                // + recent-attempts slot + bottom buttons + a small
-                // buffer. The grid no longer resizes when status pops.
+                // edge using a fixed offset from the bottom.
                 statusOverlay(spec: spec)
                     .padding(.bottom, spec.wheelSize
                              + Self.recentAttemptsSlotHeight
-                             + 90      // BottomButtons (hint disc 78 + progress bar)
-                             + 12)     // visual buffer
+                             + Self.floatingButtonReserveHeight
+                             + 8)      // visual buffer
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
                            alignment: .bottom)
                     .zIndex(2)
@@ -269,9 +268,10 @@ struct GameScreen: View {
             // wheel's way visually, easy to glance at after a submit.
             recentAttemptsRow
 
-            BottomButtons(hintsLeft: game.hintsLeft,
-                          wordsTowardHint: game.wordsTowardHint,
-                          onHint: handleHint)
+            // Reserve room at the bottom of the column for the row of
+            // floating buttons (help / SPIN / hint) so they don't
+            // overlap the chip strip above.
+            Spacer().frame(height: Self.floatingButtonReserveHeight)
         }
         .padding(.horizontal, spec.outerH)
         .padding(.vertical, spec.outerV)
@@ -313,16 +313,14 @@ struct GameScreen: View {
                 }
                 .frame(maxWidth: .infinity)
 
-                // Right column: wheel + history (under wheel) + buttons
+                // Right column: wheel + history (under wheel)
                 VStack(spacing: 0) {
                     LetterWheel(tiles: game.tiles, selection: $game.selection,
                                 onSubmit: handleWheelSubmit, onShuffle: { game.shuffleTiles() })
                         .frame(width: spec.wheelSize, height: spec.wheelSize)
                     recentAttemptsRow
-                    Spacer().frame(height: spec.gapBeforeButtons)
-                    BottomButtons(hintsLeft: game.hintsLeft,
-                                  wordsTowardHint: game.wordsTowardHint,
-                                  onHint: handleHint)
+                    // Reserve space for the floating button row.
+                    Spacer().frame(height: Self.floatingButtonReserveHeight)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -338,13 +336,24 @@ struct GameScreen: View {
     // varies frame-to-frame would resize the wheel as the player types
     // or as a status message appears. Reserving a constant height per
     // slot keeps the wheel rock-solid.
-    private static let wordPreviewSlotHeight: CGFloat = 22
+    // 26 pt fits a 16 pt pill with 2 pt vertical padding (text
+    // natural ~19 pt + 4 pt pad = 23 pt). The earlier 22 pt slot was
+    // overflowing by ~1 pt, letting the wheel paint on top of the pill
+    // during a drag.
+    private static let wordPreviewSlotHeight: CGFloat = 26
     // statusSlotHeight removed — status now renders as an absolute
     // ZStack overlay (see puzzleBody) so it never participates in any
-    // VStack flow. Grids and wheels stay the same size whether status
-    // is showing or not.
-    private static let recentAttemptsSlotHeight: CGFloat = 18
+    // VStack flow.
+    // 24 pt fits a 12 pt chip with 3 pt vertical padding cleanly. The
+    // earlier 18 pt slot was clipping chip bottoms because the
+    // BottomButtons row painted on top.
+    private static let recentAttemptsSlotHeight: CGFloat = 24
     private static let recentAttemptsShown = 3
+    /// Floating button row at the bottom — help (left), SPIN (centre,
+    /// when available), hint (right) — sits OVER this much VStack
+    /// space. The column reserves a Spacer of this height so chips
+    /// above don't slide under the buttons.
+    private static let floatingButtonReserveHeight: CGFloat = 80
 
     /// Pill must fit inside `wordPreviewSlotHeight` (22 pt). Earlier
     /// numbers (20 pt text + 8 pt vertical padding × 2 ≈ 40 pt) made
@@ -427,16 +436,15 @@ struct GameScreen: View {
     private func attemptChip(_ a: Attempt) -> some View {
         let style = chipStyle(for: a.result)
         return Text(a.word)
-            .font(.system(size: 11, weight: .semibold))
+            .font(.system(size: 12, weight: .semibold))
             .foregroundColor(style.fg)
             .strikethrough(style.strike, color: style.fg)
-            .padding(.horizontal, 7).padding(.vertical, 2)
-            .background(RoundedRectangle(cornerRadius: 8).fill(style.bg))
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(RoundedRectangle(cornerRadius: 9).fill(style.bg))
     }
 
     /// Compact help button — bottom-left anchored, smaller than the SPIN
-    /// FAB on the right because help is reference info, not a primary
-    /// action.
+    /// FAB and the hint disc because help is reference info.
     @ViewBuilder private var floatingHelpButton: some View {
         Button(action: { helpOpen = true }) {
             Text("?")
@@ -446,6 +454,58 @@ struct GameScreen: View {
                 .background(Circle().fill(Color.black.opacity(0.6)))
         }
         .buttonStyle(.plain)
+    }
+
+    /// Bottom-right anchored hint button. Mirrors the in-flow
+    /// BottomButtons.HintButton (gold disc + count badge + progress
+    /// bar) but lives as a floating overlay so it doesn't reserve
+    /// VStack space — letting the wheel and chip strip claim
+    /// everything above the floating-button row.
+    @ViewBuilder private var floatingHintButton: some View {
+        VStack(spacing: 3) {
+            Button(action: handleHint) {
+                ZStack(alignment: .topTrailing) {
+                    ZStack {
+                        Circle()
+                            .fill(game.hintsLeft > 0
+                                  ? Color(hex: 0xFFFFB400)
+                                  : Color(hex: 0xB4282828))
+                            .frame(width: 64, height: 64)
+                            .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 3)
+                        Text("\u{1F4A1}")
+                            .font(.system(size: 28))
+                    }
+                    .frame(width: 78, height: 78, alignment: .bottomLeading)
+
+                    ZStack {
+                        Circle()
+                            .fill(game.hintsLeft > 0
+                                  ? Color(hex: 0xFF32B450)
+                                  : Color(hex: 0xFF787878))
+                            .frame(width: 28, height: 28)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 2.5))
+                            .shadow(color: .black.opacity(0.4), radius: 3, x: 0, y: 2)
+                        Text("\(game.hintsLeft)")
+                            .font(.system(size: 14, weight: .heavy))
+                            .foregroundColor(.white)
+                    }
+                }
+                .frame(width: 78, height: 78)
+            }
+            .buttonStyle(.plain)
+
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color(hex: 0xFF28283C))
+                    .frame(width: 72, height: 5)
+                let progress = CGFloat(min(game.wordsTowardHint, 10)) / 10.0
+                if progress > 0 {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(Color(hex: 0xFF50DC78))
+                        .frame(width: 72 * progress, height: 5)
+                }
+            }
+        }
     }
 
     private func chipStyle(for result: AttemptResult) -> (bg: Color, fg: Color, strike: Bool) {
