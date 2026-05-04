@@ -139,10 +139,11 @@ struct GameScreen: View {
             let spec = spec(for: geo.size, landscape: landscape)
 
             ZStack {
-                // HOPEWELL WHELD WORD background — scaled to fill
-                Image("GameBackground")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
+                // Per-level country background: Vietnam, Brunei,
+                // Malaysia, Myanmar, Papua Nugini, Filipina, Singapore,
+                // Thailand, Indonesia, Bali — one image per 10-level
+                // range. Resolver lives in Backgrounds.swift.
+                GameBackgroundImage(level: game.levelNum)
                     .frame(width: w, height: h)
                     .clipped()
                 // Dark overlay for text legibility

@@ -14,9 +14,10 @@ struct HomeScreen: View {
 
     var body: some View {
         ZStack {
-            Image("GameBackground")
-                .resizable()
-                .aspectRatio(contentMode: .fill)
+            // HomeScreen previews the background of the level the player
+            // is about to enter, so they see the upcoming country before
+            // tapping LEVEL X.
+            GameBackgroundImage(level: levelNum)
                 .ignoresSafeArea()
                 .clipped()
             LinearGradient(

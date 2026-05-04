@@ -1,6 +1,5 @@
 package com.wheelword.game.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -14,8 +13,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -23,7 +20,6 @@ import androidx.compose.ui.unit.sp
 import com.wheelword.game.GameState
 import com.wheelword.game.Level
 import com.wheelword.game.LocalGameStorage
-import com.wheelword.game.R
 import com.wheelword.game.audio.LocalSoundManager
 import com.wheelword.game.audio.Sfx
 import com.wheelword.game.theme.GameColors
@@ -188,15 +184,12 @@ fun GameScreen() {
         val landscape = w > h
         val spec = specFor(w, h, landscape)
 
-        // HOPEWELL WHELD WORD background. ContentScale.Crop keeps the
-        // pyramid/desert artwork full-bleed; the semi-transparent overlay
-        // keeps the white text legible over the bright sky.
-        Image(
-            painter = painterResource(R.drawable.game_background),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
+        // Per-level country background: Vietnam, Brunei, Malaysia,
+        // Myanmar, Papua Nugini, Filipina, Singapore, Thailand,
+        // Indonesia, Bali — one image per 10-level range.
+        // ContentScale.Crop keeps the artwork full-bleed; the overlay
+        // below keeps text legible over bright skies.
+        GameBackgroundImage(level = game.levelNum)
         Box(
             modifier = Modifier
                 .fillMaxSize()
