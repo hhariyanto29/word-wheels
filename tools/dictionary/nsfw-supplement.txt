@@ -1,0 +1,20 @@
+# Supplementary NSFW deny-list — additions on top of `nsfw-base-en.txt`
+# (which is LDNOOBW, https://github.com/LDNOOBW/List-of-Dirty-Naughty-...).
+#
+# One word per line, lowercase. Lines beginning with `#` are comments.
+# These words are removed from the bundled dictionary at build time
+# (see tools/dictionary/build_dictionary.py).
+#
+# Goal: keep the player-facing word recogniser family-friendly enough
+# for the Play Store / App Store policy for general-audience apps.
+#
+# To add a word:
+#   1. Add the base form on its own line (lowercase).
+#   2. Add common inflections (-s, -ed, -ing, -er) — the build script
+#      does *not* auto-conjugate; it does exact match only.
+#
+# This file is intentionally human-curated rather than auto-generated:
+# false positives in a deny-list (e.g. "scunthorpe" containing "cunt")
+# damage the game more than the words being denied. Exact matching keeps
+# us safe from substring problems.
+

@@ -139,9 +139,17 @@ class GameStorage(context: Context) {
         prefs.edit().remove(KEY_SNAPSHOT).apply()
     }
 
+    /** True once the player has dismissed the How-to-Play dialog. */
+    var seenHelp: Boolean
+        get() = prefs.getBoolean(KEY_SEEN_HELP, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_SEEN_HELP, value).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "word_wheel_game"
         private const val KEY_SNAPSHOT = "snapshot"
+        private const val KEY_SEEN_HELP = "seen_help"
     }
 }
 

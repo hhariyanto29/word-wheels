@@ -15,6 +15,9 @@ struct GameScreen: View {
     @State private var status: String = ""
     @State private var spinDialogOpen = false
     @State private var settingsOpen = false
+    /// Help dialog state. Initialised from `storage.seenHelp` in `init`
+    /// so first-time players see the modal automatically.
+    @State private var helpOpen: Bool
     /// Spin reward is captured when the wheel stops, but not credited
     /// to the coin counter until the dialog dismisses — that way the
     /// TopBar's count-up + pulse animation plays visibly.
@@ -37,6 +40,7 @@ struct GameScreen: View {
 
     init(storage: GameStorage = GameStorage()) {
         self.storage = storage
+        _helpOpen = State(initialValue: !storage.seenHelp)
 
         let saved = storage.load()
         let initial = GameState(
@@ -102,6 +106,13 @@ struct GameScreen: View {
 
             if settingsOpen {
                 SettingsDialog(sound: sound, onDismiss: { settingsOpen = false })
+            }
+
+            if helpOpen {
+                HelpDialog(onDismiss: {
+                    helpOpen = false
+                    storage.seenHelp = true
+                })
             }
 
             if let tier = pendingDifficultyTier {
@@ -187,6 +198,14 @@ struct GameScreen: View {
                        streak: game.currentStreak)
                 // SPIN moved to a floating button so it never squishes
                 // the coin / word / level labels inside the TopBar row.
+                Button(action: { helpOpen = true }) {
+                    Text("?")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(Color.white.opacity(0.25)))
+                }
+                .buttonStyle(.plain)
                 Button(action: { settingsOpen = true }) {
                     Text("⚙")
                         .font(.system(size: 22))
@@ -202,11 +221,13 @@ struct GameScreen: View {
                           usedCells: game.usedCells)
                 .frame(maxWidth: .infinity)
                 .aspectRatio(CGFloat(game.level.cols) / CGFloat(game.level.rows), contentMode: .fit)
+                .frame(maxHeight: spec.gridMaxHeight)
             Spacer().frame(height: spec.gapAfterGrid)
 
             wordPreview
             Spacer().frame(height: spec.gapAfterWord)
             statusBubble(spec: spec)
+            recentAttemptsRow
 
             Spacer(minLength: 0)
             GeometryReader { box in
@@ -243,6 +264,14 @@ struct GameScreen: View {
                        streak: game.currentStreak)
                 // SPIN moved to a floating button so it never squishes
                 // the coin / word / level labels inside the TopBar row.
+                Button(action: { helpOpen = true }) {
+                    Text("?")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(Color.white.opacity(0.25)))
+                }
+                .buttonStyle(.plain)
                 Button(action: { settingsOpen = true }) {
                     Text("⚙")
                         .font(.system(size: 22))
@@ -265,6 +294,7 @@ struct GameScreen: View {
                     wordPreview
                     Spacer().frame(height: spec.gapAfterWord)
                     statusBubble(spec: spec)
+                    recentAttemptsRow
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity)
@@ -304,6 +334,8 @@ struct GameScreen: View {
     private static let wordPreviewSlotHeight: CGFloat = 40
     private static let statusSlotHeight: CGFloat = 32
     private static let bonusRowSlotHeight: CGFloat = 22
+    private static let recentAttemptsSlotHeight: CGFloat = 32
+    private static let recentAttemptsShown = 3
 
     @ViewBuilder private var wordPreview: some View {
         ZStack {
@@ -359,6 +391,39 @@ struct GameScreen: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    @ViewBuilder private var recentAttemptsRow: some View {
+        ZStack {
+            if !game.recentAttempts.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(game.recentAttempts.prefix(Self.recentAttemptsShown)) { a in
+                        attemptChip(a)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.recentAttemptsSlotHeight)
+    }
+
+    @ViewBuilder private func attemptChip(_ a: Attempt) -> some View {
+        let bg: Color
+        let fg: Color
+        let strike: Bool
+        switch a.result {
+        case .grid:      bg = GameColors.gemGreen;        fg = .white;                    strike = false
+        case .bonus:     bg = GameColors.starYellow;      fg = GameColors.letterColor;    strike = false
+        case .duplicate: bg = GameColors.badgeBlue;       fg = .white;                    strike = false
+        case .invalid:   bg = Color.black.opacity(0.33);  fg = Color.white.opacity(0.75); strike = true
+        case .tooShort:  bg = Color.black.opacity(0.20);  fg = Color.white.opacity(0.60); strike = false
+        }
+        Text(a.word)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundColor(fg)
+            .strikethrough(strike, color: fg)
+            .padding(.horizontal, 10).padding(.vertical, 4)
+            .background(RoundedRectangle(cornerRadius: 10).fill(bg))
     }
 
     @ViewBuilder private var bonusRow: some View {
@@ -438,18 +503,23 @@ private struct Spec {
     let gapAfterWord: CGFloat
     let gapBeforeButtons: CGFloat
     let statusFontSp: Int
+    // Cap the grid at ~34% of column height in portrait so the wheel,
+    // which uses leftover space, stays the dominant element. nil = no
+    // cap (landscape uses a side-by-side layout instead).
+    let gridMaxHeight: CGFloat?
 }
 
 private func spec(for size: CGSize, landscape: Bool) -> Spec {
     let short = min(size.width, size.height)
     let compact = size.height < 680 || (landscape && size.height < 420)
     return Spec(
-        outerH: short < 360 ? 10 : 16,
+        outerH: short < 360 ? 8 : 12,
         outerV: compact ? 12 : 24,
         gapAfterTopBar: compact ? 8 : 16,
         gapAfterGrid: compact ? 8 : 14,
         gapAfterWord: compact ? 4 : 6,
         gapBeforeButtons: compact ? 4 : 8,
         statusFontSp: short < 360 ? 13 : 15,
+        gridMaxHeight: landscape ? nil : size.height * 0.34,
     )
 }
