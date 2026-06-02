@@ -133,5 +133,10 @@ dependencies {
 
     implementation("androidx.core:core-splashscreen:1.0.1")
 
+    // Google Mobile Ads (AdMob). Pulls in INTERNET + AD_ID permissions
+    // and consumer ProGuard rules via AAR/manifest merge, so no extra
+    // proguard-rules.pro changes are needed for R8 release builds.
+    implementation("com.google.android.gms:play-services-ads:24.4.0")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

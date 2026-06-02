@@ -8,6 +8,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.ads.MobileAds
 import com.wheelword.game.audio.LocalSoundManager
 import com.wheelword.game.audio.SoundManager
 import com.wheelword.game.storage.GameStorage
@@ -36,6 +37,13 @@ class MainActivity : ComponentActivity() {
         // fine because the splash + initial render take longer than that.
         lifecycleScope.launch(Dispatchers.IO) {
             Dictionary.load(applicationContext)
+        }
+        // Initialise the Mobile Ads SDK off the main thread — the first
+        // initialize() call does disk + network I/O. Ads can only load
+        // after this completes; the empty callback is fine because no
+        // ad request is in flight yet (Stage 2 adds the rewarded ad).
+        lifecycleScope.launch(Dispatchers.IO) {
+            MobileAds.initialize(this@MainActivity) {}
         }
         enableEdgeToEdge()
         setContent {

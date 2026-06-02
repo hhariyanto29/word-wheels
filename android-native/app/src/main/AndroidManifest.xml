@@ -20,6 +20,20 @@
             </intent-filter>
         </activity>
 
+        <!-- AdMob App ID. REQUIRED by the Mobile Ads SDK — the app
+             crashes on MobileAds.initialize() if missing/malformed.
+
+             ⚠️ THIS IS GOOGLE'S TEST APP ID — serves test ads only,
+             no revenue. Before a production release, replace with the
+             real App ID from the AdMob console:
+               AdMob → Apps → Word Wheel → App settings → App ID
+               format: ca-app-pub-4602595932540837~XXXXXXXXXX
+             (publisher prefix 4602595932540837 is already ours; only
+             the ~XXXXXXXXXX app suffix differs). -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
+
     </application>
 
 </manifest>
