@@ -1,64 +1,40 @@
 package com.wheelword.game.ui
 
 import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wheelword.game.theme.BalooFamily
 import com.wheelword.game.theme.GameColors
 
-/** Layered coin glyph. Two concentric circles + a centred star give a
- *  more "game-y" point-counter than the plain green disc that came
- *  before. Drawn entirely in Compose so we don't need a drawable
- *  resource and it scales cleanly on every density. */
-@Composable
-private fun CoinIcon(modifier: Modifier = Modifier, size: Int = 24) {
-    // Cleaner two-tone coin: gold outer disc with a thin warm border, a
-    // bright cream star centred on top. Earlier the inner star was dark
-    // brown over the gold gradient — at 22dp the contrast read as muddy
-    // on real devices. White-on-gold pops better.
-    Box(
-        modifier = modifier
-            .size(size.dp)
-            .clip(CircleShape)
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(Color(0xFFFFE070), Color(0xFFFFB020)),
-                )
-            )
-            .border(width = 1.5.dp, color = Color(0xFFB37400), shape = CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "★",
-            color = Color.White,
-            fontSize = (size * 0.62f).sp,
-            fontWeight = FontWeight.Black,
-        )
-    }
-}
-
+/**
+ * In-puzzle HUD: a row of floating glass pills (coins, W-count,
+ * streak on the left; level on the right) in the Word Wheel v2
+ * design language. No longer a single solid bar — each stat is its
+ * own glass capsule.
+ */
 @Composable
 fun TopBar(
     coins: Int,
@@ -70,15 +46,14 @@ fun TopBar(
 ) {
     // Tween-animate the displayed coin count when it changes — the spin
     // reward (and word-completion +2) ticks up smoothly instead of
-    // snapping. ~600ms is short enough to feel responsive but long
-    // enough to read the change.
+    // snapping.
     val displayedCoins by animateIntAsState(
         targetValue = coins,
         animationSpec = tween(durationMillis = 600, easing = LinearOutSlowInEasing),
         label = "coinCounter",
     )
-    // Track previous count so we can pulse the icon when the value
-    // jumps by a meaningful amount (skip the +2 from a single word).
+    // Pulse the coin icon when the value jumps by a meaningful amount
+    // (skip the +2 from a single word).
     var lastCoins by remember { mutableStateOf(coins) }
     var pulseActive by remember { mutableStateOf(false) }
     LaunchedEffect(coins) {
@@ -96,87 +71,55 @@ fun TopBar(
     )
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(GameColors.TopBarBg)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Coin icon + count is tappable as one unit so the player has
-        // a comfortable hit target. Tapping opens an info dialog that
-        // explains how points are earned and that hints can be bought
-        // for HINT_COIN_COST when free hints run out.
-        Row(
-            modifier = Modifier.run {
-                if (onCoinClick != null) {
-                    clip(RoundedCornerShape(14.dp)).clickable(onClick = onCoinClick)
-                } else this
-            }.padding(horizontal = 2.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            CoinIcon(modifier = Modifier.scale(pulse), size = 22)
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = displayedCoins.toString(),
-                color = Color.White,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-            )
+        HUDPill(onClick = onCoinClick) {
+            StarCoinIcon(size = 22.dp, modifier = Modifier.scale(pulse))
+            Spacer(Modifier.width(7.dp))
+            Text(text = displayedCoins.toString(), style = HUDPillTextStyle)
         }
 
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(6.dp))
 
-        // Words badge
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(14.dp))
-                .background(GameColors.BadgeBlue)
-                .padding(horizontal = 10.dp, vertical = 4.dp),
-        ) {
+        HUDPill {
             Text(
-                text = "W  $found/$total",
+                text = "W",
                 color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-
-        // Streak badge — only shown once the player has a streak going.
-        // Hidden at streak==0 to avoid noise on first install.
-        if (streak > 0) {
-            Spacer(Modifier.width(8.dp))
-            Box(
+                fontFamily = BalooFamily,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 13.sp,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0x40FF7028))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-            ) {
-                Text(
-                    text = "🔥 $streak",
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                    .clip(RoundedCornerShape(50))
+                    .background(GameColors.Blue)
+                    .padding(horizontal = 8.dp),
+            )
+            Spacer(Modifier.width(7.dp))
+            Text(
+                text = "$found/$total",
+                style = HUDPillTextStyle,
+                fontSize = 15.sp,
+            )
+        }
+
+        // Streak pill — only once a streak is going, to avoid noise on
+        // first install.
+        if (streak > 0) {
+            Spacer(Modifier.width(6.dp))
+            HUDPill {
+                Text(text = "🔥", fontSize = 15.sp)
+                Spacer(Modifier.width(5.dp))
+                Text(text = streak.toString(), style = HUDPillTextStyle, fontSize = 15.sp)
             }
         }
 
         Spacer(Modifier.weight(1f))
 
-        // Level badge. softWrap=false + maxLines=1 prevents the vertical
-        // letter-stack glitch ("L / V / . / 2") that appeared when the
-        // help icon was previously stealing horizontal room from the row.
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color(0x28FFFFFF))
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-        ) {
+        HUDPill {
             Text(
                 text = "Lv.$level",
-                color = Color.White,
+                style = HUDPillTextStyle,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 softWrap = false,
             )

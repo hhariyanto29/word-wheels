@@ -136,12 +136,19 @@ fun LetterWheel(
             val tileOrbit = radius * 0.72f
             val tileR = radius * 0.22f
 
+            // Soft drop shadow under the disc, then the near-white disc
+            // with a bright rim — the design's frosted wheel.
+            drawCircle(
+                color = Color(0x4D000000),
+                radius = radius,
+                center = center.copy(y = center.y + radius * 0.04f),
+            )
             drawCircle(color = GameColors.WheelBg, radius = radius, center = center)
             drawCircle(
-                color = Color(0x78FFFFFF),
-                radius = radius,
+                color = Color(0xB3FFFFFF),
+                radius = radius - 2f,
                 center = center,
-                style = Stroke(width = 2.5f),
+                style = Stroke(width = 4f),
             )
 
             val positions = List(tiles.size) { i ->
@@ -152,8 +159,10 @@ fun LetterWheel(
                 )
             }
 
-            // Selection lines
+            // Selection trace — thick gold rounded line, like the
+            // prototype's 9px polyline.
             if (selection.size >= 2) {
+                val traceWidth = radius * 0.06f
                 for (i in 0 until selection.size - 1) {
                     val ai = selection[i]
                     val bi = selection[i + 1]
@@ -162,7 +171,8 @@ fun LetterWheel(
                             color = GameColors.LineColor,
                             start = positions[ai],
                             end = positions[bi],
-                            strokeWidth = 8f,
+                            strokeWidth = traceWidth,
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round,
                         )
                     }
                 }
@@ -173,6 +183,12 @@ fun LetterWheel(
                 val pos = positions[i]
                 val isSelected = selection.contains(i)
                 if (isSelected) {
+                    // Gold selection disc with a soft halo.
+                    drawCircle(
+                        color = GameColors.TileSelectedBg.copy(alpha = 0.35f),
+                        radius = tileR * 1.18f,
+                        center = pos,
+                    )
                     drawCircle(
                         color = GameColors.TileSelectedBg,
                         radius = tileR,
@@ -242,7 +258,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawTileLetter(
     val style = TextStyle(
         color = color,
         fontSize = sizePx.toSp(),
-        fontWeight = FontWeight.Bold,
+        fontFamily = com.wheelword.game.theme.BalooFamily,
+        fontWeight = FontWeight.ExtraBold,
     )
     val layout = measurer.measure(text = letter, style = style)
     drawText(

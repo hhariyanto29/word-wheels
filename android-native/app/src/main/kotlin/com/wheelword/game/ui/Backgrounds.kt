@@ -39,6 +39,16 @@ private fun backgroundAssetPath(level: Int): String? {
     return BACKGROUND_BY_RANGE.getOrNull(idx)
 }
 
+/** Display names matching BACKGROUND_BY_RANGE, for the location chip
+ *  on the puzzle screen. */
+private val COUNTRY_BY_RANGE = arrayOf(
+    "Vietnam", "Brunei", "Malaysia", "Myanmar", "Papua Nugini",
+    "Filipina", "Singapore", "Thailand", "Indonesia", "Bali",
+)
+
+fun countryNameFor(level: Int): String? =
+    COUNTRY_BY_RANGE.getOrNull((level - 1) / 10)
+
 /**
  * Renders the appropriate per-level background. Falls back to the
  * legacy `R.drawable.game_background` (Egypt) when [level] is outside
