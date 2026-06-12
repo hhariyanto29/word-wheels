@@ -1,29 +1,47 @@
 package com.wheelword.game.ui
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wheelword.game.theme.GameColors
+import com.wheelword.game.theme.NunitoFamily
 
 /**
- * Pre-game landing screen. Shows the logo + a big "LEVEL X" button
- * that resumes wherever the player left off, plus a streak/coins
- * stat row across the top and a settings cog top-right.
- *
- * Behaviour mirrors what the Words of Wonders walkthrough showed —
- * the player taps LEVEL X to enter the puzzle screen.
+ * Pre-game landing screen, Word Wheel v2 design: full-bleed country
+ * background with legibility gradients, glass HUD pills (coins +
+ * streak) top-left, glass settings cog top-right, a pulsing green
+ * candy "LEVEL X" button low-centre, and the gold daily-spin candy
+ * button at the bottom when a spin is available.
  */
 @Composable
 fun HomeScreen(
@@ -44,145 +62,117 @@ fun HomeScreen(
                 ),
             ),
     ) {
-        // Per-level country background (HomeScreen uses the same artwork
-        // the player is about to enter, so the upcoming country is
-        // teased on the menu).
+        // The upcoming level's country artwork teases what the player
+        // is about to enter.
         GameBackgroundImage(level = levelNum)
+        // Top + bottom legibility gradient (design: dark at the very
+        // top and bottom, clear in the middle so the artwork shows).
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0x66000014),
-                            Color(0x55000028),
-                            Color(0x80000032),
-                        ),
+                        0f to Color(0x6B050C1E),
+                        0.18f to Color.Transparent,
+                        0.52f to Color.Transparent,
+                        1f to Color(0x8C050C1E),
                     ),
                 ),
         )
 
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .windowInsetsPadding(WindowInsets.systemBars),
         ) {
-            // Top bar — coins, streak, settings
+            // HUD — coins + streak left, settings right
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(GameColors.TopBarBg)
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(18.dp)
-                                .clip(CircleShape)
-                                .background(GameColors.GemGreen),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = coins.toString(),
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
+                HUDPill {
+                    StarCoinIcon(size = 24.dp)
+                    Spacer(Modifier.width(7.dp))
+                    Text(text = coins.toString(), style = HUDPillTextStyle)
                 }
                 if (streak > 0) {
                     Spacer(Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0x66FF7028))
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    ) {
-                        Text(
-                            text = "🔥 $streak",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                    HUDPill {
+                        Text(text = "🔥", fontSize = 17.sp)
+                        Spacer(Modifier.width(5.dp))
+                        Text(text = streak.toString(), style = HUDPillTextStyle)
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(Color(0x40FFFFFF))
-                        .clickable(onClick = onSettingsClick)
-                        .padding(8.dp),
-                ) {
-                    Text(text = "⚙", color = Color.White, fontSize = 22.sp)
+                RoundGlassButton(onClick = onSettingsClick) {
+                    Text(text = "⚙", color = Color.White, fontSize = 20.sp)
                 }
             }
 
-            Spacer(Modifier.weight(1f))
-
-            // Title
-            Text(
-                text = "WORD",
-                color = Color.White,
-                fontSize = 44.sp,
-                fontWeight = FontWeight.ExtraBold,
+            // Level CTA — pulsing candy button + caption
+            val pulseTransition = rememberInfiniteTransition(label = "ctaPulse")
+            val pulse by pulseTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.06f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 1200),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+                label = "ctaPulseScale",
             )
-            Text(
-                text = "WHEEL",
-                color = GameColors.StarYellow,
-                fontSize = 56.sp,
-                fontWeight = FontWeight.Black,
-            )
-
-            Spacer(Modifier.weight(1f))
-
-            // Big resume button — equivalent to "LEVEL 120" in the WoW
-            // home screen. Goes straight back into wherever you left off.
-            Box(
+            Column(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(36.dp))
-                    .background(Color(0xFF32C850))
-                    .clickable(onClick = onResume)
-                    .padding(horizontal = 60.dp, vertical = 18.dp),
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 168.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(
+                CandyButton(
                     text = "LEVEL $levelNum",
+                    onClick = onResume,
+                    color = GameColors.Green,
+                    colorDeep = GameColors.GreenDeep,
+                    fontSize = 30.sp,
+                    modifier = Modifier
+                        .scale(pulse)
+                        .width(270.dp),
+                    verticalPadding = 15.dp,
+                )
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = "Tap to continue",
                     color = Color.White,
-                    fontSize = 26.sp,
+                    fontFamily = NunitoFamily,
                     fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    modifier = Modifier.clickable(onClick = onResume),
+                    style = TextStyle(
+                        shadow = Shadow(
+                            color = Color(0xB3000000),
+                            offset = Offset(0f, 2f),
+                            blurRadius = 8f,
+                        ),
+                    ),
                 )
             }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = "Tap to continue",
-                color = Color(0xCCFFFFFF),
-                fontSize = 13.sp,
-            )
 
-            Spacer(Modifier.weight(1f))
-
-            // Daily spin entry — appears when claim is available
+            // Daily spin entry — appears when today's spin is unclaimed
             if (spinAvailable) {
-                Box(
+                CandyButton(
+                    text = "🎁 Daily spin available",
+                    onClick = onSpinClick,
+                    color = GameColors.Gold,
+                    colorDeep = GameColors.GoldDeep,
+                    textColor = Color(0xFF5C3A00),
+                    fontSize = 18.sp,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(Color(0xFFFFB400))
-                        .clickable(onClick = onSpinClick)
-                        .padding(horizontal = 28.dp, vertical = 12.dp),
-                ) {
-                    Text(
-                        text = "🎁  Daily spin available",
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 44.dp),
+                    horizontalPadding = 34.dp,
+                    verticalPadding = 12.dp,
+                )
             }
         }
     }

@@ -111,6 +111,9 @@ fun GameScreen() {
     var helpOpen by remember { mutableStateOf(storage?.seenHelp == false) }
     // App opens on the home screen; tap "LEVEL X" to enter the puzzle.
     var atHome by rememberSaveable { mutableStateOf(true) }
+    // Intro flow (design v2): branded splash → loading bar over the
+    // level art → home. Saveable so a config change doesn't replay it.
+    var intro by rememberSaveable { mutableStateOf("splash") }
 
     LaunchedEffect(game.levelNum, game.isComplete()) {
         if (game.isComplete()) sound?.play(Sfx.Complete)
@@ -141,6 +144,19 @@ fun GameScreen() {
         status = ""
     }
 
+    // Branded intro: splash (wheel mark + wordmark) then the loading
+    // screen over the upcoming level's background.
+    when (intro) {
+        "splash" -> {
+            SplashIntroScreen(onDone = { intro = "loading" })
+            return
+        }
+        "loading" -> {
+            LoadingScreen(level = game.levelNum, onDone = { intro = "done" })
+            return
+        }
+    }
+
     // Home screen — pre-game landing with the resume button. Tapping
     // LEVEL X switches `atHome` off and the puzzle takes over.
     if (atHome) {
@@ -157,6 +173,7 @@ fun GameScreen() {
         // open (player tapped from the home buttons).
         if (spinDialogOpen) {
             SpinWheelDialog(
+                alreadySpun = !game.canSpinToday(today),
                 // Stash the result; we don't credit the player's account
                 // until the dialog dismisses. That way the TopBar's
                 // count-up + pulse animation actually plays visibly,
@@ -208,16 +225,17 @@ fun GameScreen() {
         // ContentScale.Crop keeps the artwork full-bleed; the overlay
         // below keeps text legible over bright skies.
         GameBackgroundImage(level = game.levelNum)
+        // Legibility gradient from the design: darker at the very top
+        // (HUD) and bottom (wheel/buttons), clear through the middle.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0x66000014),
-                            Color(0x4D000028),
-                            Color(0x80000032),
-                        )
+                        0f to Color(0x8C050C1E),
+                        0.3f to Color(0x26050C1E),
+                        0.55f to Color(0x1A050C1E),
+                        1f to Color(0x80050C1E),
                     )
                 ),
         )
@@ -278,14 +296,15 @@ fun GameScreen() {
                     .padding(start = 14.dp, bottom = 24.dp),
             )
 
-            if (game.canSpinToday(today)) {
-                FloatingSpinButton(
-                    onClick = { spinDialogOpen = true },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 12.dp),
-                )
-            }
+            // SPIN stays visible every day (the dialog says "come back
+            // tomorrow" once claimed); the red dot marks availability.
+            FloatingSpinButton(
+                available = game.canSpinToday(today),
+                onClick = { spinDialogOpen = true },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 12.dp),
+            )
 
             FloatingHintButton(
                 hintsLeft = game.hintsLeft,
@@ -303,6 +322,7 @@ fun GameScreen() {
 
         if (spinDialogOpen) {
             SpinWheelDialog(
+                alreadySpun = !game.canSpinToday(today),
                 // Stash the result; we don't credit the player's account
                 // until the dialog dismisses. That way the TopBar's
                 // count-up + pulse animation actually plays visibly,
@@ -326,6 +346,7 @@ fun GameScreen() {
 
         if (game.isComplete() && pendingDifficultyTier == null) {
             CompletionDialog(
+                levelNum = game.levelNum,
                 isLastLevel = game.levelNum >= Level.TOTAL_LEVELS,
                 onNext = {
                     val completed = game.levelNum
@@ -433,6 +454,8 @@ private fun PortraitContent(
                 Spacer(Modifier.width(8.dp))
                 SettingsIconButton(onClick = onSettingsClick)
             }
+            Spacer(Modifier.height(spec.gapAfterTopBar))
+            LocationChip(level = level)
             Spacer(Modifier.height(spec.gapAfterTopBar))
 
             // Grid takes the leftover vertical space ABOVE the wheel.
@@ -612,9 +635,9 @@ private fun LandscapeContent(
 // remaining vertical space, so any slot whose height varies frame-to-frame
 // would resize the wheel as the player types or as a status message
 // appears. Reserving a constant height per slot keeps the wheel rock-solid.
-// 26 dp fits a 16 sp pill with 2 dp vertical padding (text natural
-// ~19 dp + 4 dp pad = 23 dp), with breathing room.
-private val WordPreviewSlotHeight = 26.dp
+// 30 dp fits the 18 sp Baloo pill (text natural ~25 dp + 2 dp pad)
+// with breathing room.
+private val WordPreviewSlotHeight = 30.dp
 // StatusSlotHeight removed — status now renders as an absolute overlay.
 // 24 dp fits a 12 sp chip with 3 dp vertical padding cleanly.
 private val RecentAttemptsSlotHeight = 24.dp
@@ -627,9 +650,9 @@ private val FloatingButtonReserveHeight = 80.dp
 
 @Composable
 private fun WordPreview(text: String) {
-    // Pill (16 sp text, ~23 dp natural) sits cleanly inside the 26 dp
-    // WordPreviewSlotHeight defined above. Earlier the pill at 20 sp
-    // + 8 dp padding overflowed and the wheel painted on top of it.
+    // Live-trace pill in the design's gold accent with chunky white
+    // letters. Sits inside the fixed WordPreviewSlotHeight so the wheel
+    // below never moves as the player drags.
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -639,19 +662,58 @@ private fun WordPreview(text: String) {
         if (text.isNotEmpty()) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(11.dp))
-                    .background(GameColors.WheelBg)
-                    .padding(horizontal = 12.dp, vertical = 2.dp),
+                    .shadow(elevation = 6.dp, shape = RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(GameColors.Gold)
+                    .padding(horizontal = 16.dp, vertical = 1.dp),
             ) {
                 Text(
                     text = text,
-                    color = GameColors.LetterColor,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    fontFamily = com.wheelword.game.theme.BalooFamily,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 3.sp,
                 )
             }
         }
     }
+}
+
+/**
+ * Centered location chip under the HUD ("VIETNAM", "BALI", …) —
+ * the design's uppercase, letter-spaced country label.
+ */
+@Composable
+private fun LocationChip(level: Int) {
+    val name = countryNameFor(level) ?: return
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(Color(0x73050C1E))
+            .border(width = 1.dp, color = GameColors.StrokeSoft, shape = RoundedCornerShape(50)),
+    ) {
+        Text(
+            text = name.uppercase(),
+            color = GameColors.InkSoft,
+            fontFamily = com.wheelword.game.theme.NunitoFamily,
+            fontWeight = FontWeight.ExtraBold,
+            fontSize = 12.sp,
+            letterSpacing = 2.sp,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
+        )
+    }
+}
+
+/** Maps a GameState status message to its toast accent colour —
+ *  green for grid words, gold for bonuses, blue for dupes/info, red
+ *  for misses — mirroring the design's toast types. */
+private fun toastColorFor(status: String): Color = when {
+    status.startsWith("Found:") -> GameColors.Green
+    status.startsWith("Bonus:") -> GameColors.Gold
+    status.startsWith("No match") -> GameColors.Red
+    status.startsWith("Already") || status.startsWith("Bonus already") -> GameColors.Blue
+    else -> GameColors.Blue
 }
 
 @Composable
@@ -667,14 +729,18 @@ private fun StatusOverlay(
     if (status.isEmpty()) return
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(Color(0xCC000000))
-            .padding(horizontal = 14.dp, vertical = 6.dp),
+            .shadow(elevation = 8.dp, shape = RoundedCornerShape(50))
+            .clip(RoundedCornerShape(50))
+            .background(toastColorFor(status))
+            .padding(horizontal = 18.dp, vertical = 6.dp),
     ) {
         Text(
             text = status,
             color = Color.White,
+            fontFamily = com.wheelword.game.theme.BalooFamily,
+            fontWeight = FontWeight.ExtraBold,
             fontSize = fontSp.sp,
+            maxLines = 1,
         )
     }
 }
@@ -704,17 +770,17 @@ private fun RecentAttemptsRow(attempts: List<com.wheelword.game.Attempt>) {
 private fun AttemptChip(attempt: com.wheelword.game.Attempt) {
     val (bg, fg, decoration) = when (attempt.result) {
         com.wheelword.game.AttemptResult.GRID -> Triple(
-            GameColors.GemGreen,
+            GameColors.Green,
             Color.White,
             null,
         )
         com.wheelword.game.AttemptResult.BONUS -> Triple(
-            GameColors.StarYellow,
-            Color(0xFF1E1E1E),
+            GameColors.Gold,
+            Color.White,
             null,
         )
         com.wheelword.game.AttemptResult.DUPLICATE -> Triple(
-            GameColors.BadgeBlue,
+            GameColors.Blue,
             Color.White,
             null,
         )
@@ -747,81 +813,86 @@ private fun AttemptChip(attempt: com.wheelword.game.Attempt) {
 }
 
 /**
- * Floating SPIN button. 64dp gold gradient circle anchored bottom-right
- * of the play area — Material's FAB conventional spot. The little gift
- * emoji + "SPIN" caption underneath keeps the affordance obvious.
- *
- * Only displayed on days when the daily spin is still available; the
- * caller controls visibility.
+ * Floating SPIN button: green candy disc with the gift emoji, a
+ * "SPIN" caption, and a red availability dot when today's spin is
+ * unclaimed — straight from the design's bottom action row.
  */
 @Composable
-private fun FloatingSpinButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun FloatingSpinButton(
+    available: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier
-                .shadow(elevation = 10.dp, shape = androidx.compose.foundation.shape.CircleShape)
-                .size(58.dp)
-                .clip(androidx.compose.foundation.shape.CircleShape)
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(GameColors.GemGreen, Color(0xFF1F8030)),
-                    ),
+        Box {
+            Box(
+                modifier = Modifier
+                    .shadow(elevation = 10.dp, shape = CircleShape)
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(GameColors.Green, GameColors.GreenDeep),
+                        ),
+                    )
+                    .clickable(onClick = onClick),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "🎁",
+                    fontSize = 26.sp,
                 )
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "🎁",
-                fontSize = 30.sp,
-            )
+            }
+            if (available) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(14.dp)
+                        .clip(CircleShape)
+                        .background(GameColors.Red)
+                        .border(width = 2.dp, color = Color.White, shape = CircleShape),
+                )
+            }
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(2.dp))
         Text(
             text = "SPIN",
             color = Color.White,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
+            fontFamily = com.wheelword.game.theme.BalooFamily,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.5.sp,
+            style = androidx.compose.ui.text.TextStyle(
+                shadow = androidx.compose.ui.graphics.Shadow(
+                    color = Color(0xB3000000),
+                    offset = androidx.compose.ui.geometry.Offset(0f, 2f),
+                    blurRadius = 6f,
+                ),
+            ),
         )
     }
 }
 
 @Composable
 private fun SettingsIconButton(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(Color(0x40FFFFFF))
-            .clickable(onClick = onClick)
-            .padding(8.dp),
-    ) {
-        Text(
-            text = "⚙",
-            color = Color.White,
-            fontSize = 22.sp,
-        )
+    RoundGlassButton(onClick = onClick, size = 38.dp) {
+        Text(text = "⚙", color = Color.White, fontSize = 19.sp)
     }
 }
 
 @Composable
 private fun FloatingHelpButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    // Bottom-left anchored. Smaller than the FAB-style SPIN button on
-    // the right because help is reference info, not a primary action.
-    Box(
-        modifier = modifier
-            .size(32.dp)
-            .clip(androidx.compose.foundation.shape.CircleShape)
-            .background(Color(0x99000000))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
+    // Bottom-left anchored glass disc, matching the design's "?" button.
+    RoundGlassButton(onClick = onClick, size = 42.dp, modifier = modifier) {
         Text(
             text = "?",
             color = Color.White,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
+            fontFamily = com.wheelword.game.theme.BalooFamily,
+            fontSize = 19.sp,
+            fontWeight = FontWeight.ExtraBold,
         )
     }
 }
@@ -853,11 +924,15 @@ private fun FloatingHintButton(
                 modifier = Modifier
                     .size(64.dp)
                     .align(Alignment.BottomStart)
-                    .shadow(elevation = 6.dp, shape = CircleShape)
+                    .shadow(elevation = 8.dp, shape = CircleShape)
                     .clip(CircleShape)
                     .background(
-                        if (available) Color(0xFFFFB400)  // gold = clickable
-                        else Color(0xB4282828)            // gray = unaffordable
+                        if (available) Brush.verticalGradient(
+                            colors = listOf(GameColors.GoldLight, GameColors.Gold),
+                        )
+                        else Brush.verticalGradient(
+                            colors = listOf(Color(0xFF555F75), Color(0xFF424B5E)),
+                        )
                     )
                     .clickable(onClick = onHint),
                 contentAlignment = Alignment.Center,
@@ -872,8 +947,8 @@ private fun FloatingHintButton(
             // they can't (still tappable so they get the "Need X coins"
             // toast).
             val badgeBg = when {
-                hintsLeft > 0 -> Color(0xFF32B450)            // green
-                canBuyWithCoins -> Color(0xFFFFB400)          // gold (purchasable)
+                hintsLeft > 0 -> GameColors.Green
+                canBuyWithCoins -> GameColors.GoldDeep
                 else -> Color(0xFF787878)                     // gray (can't afford)
             }
             val badgeText: String = if (hintsLeft > 0) hintsLeft.toString()
@@ -894,8 +969,9 @@ private fun FloatingHintButton(
                 Text(
                     text = badgeText,
                     color = Color.White,
+                    fontFamily = com.wheelword.game.theme.BalooFamily,
                     fontSize = badgeFont,
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.ExtraBold,
                 )
             }
         }
@@ -906,7 +982,7 @@ private fun FloatingHintButton(
                 .width(72.dp)
                 .height(5.dp)
                 .clip(RoundedCornerShape(3.dp))
-                .background(Color(0xFF28283C)),
+                .background(Color(0x66091226)),
         ) {
             val progress = (wordsTowardHint.coerceAtMost(10)) / 10f
             if (progress > 0f) {
@@ -914,7 +990,7 @@ private fun FloatingHintButton(
                     modifier = Modifier
                         .fillMaxHeight()
                         .fillMaxWidth(progress)
-                        .background(Color(0xFF50DC78)),
+                        .background(GameColors.Green),
                 )
             }
         }

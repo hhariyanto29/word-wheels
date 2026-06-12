@@ -5,6 +5,27 @@ per language. Keep it short and punchy — this appears on the store page.
 
 ---
 
+## v1.8.0 (versionCode 15) — All-new look ✨
+
+```
+Word Wheel, completely redesigned!
+
+• Fresh navy & gold look across every screen
+• New animated splash + loading screens
+• Glass-style HUD with coins, streak and progress
+• Redesigned crossword board with satisfying tile pops
+• Gold letter-trace on the wheel + colorful feedback
+• Prettier Daily Spin with a shiny CLAIM flow
+• Level-complete celebration with popping stars
+
+Same puzzles, same progress — everything just looks
+and feels better. Enjoy the voyage!
+```
+
+Length: ~430 chars ✓
+
+---
+
 ## v1.7.6 (versionCode 14) — Country tour + coin-bought hints 🌏
 
 ```

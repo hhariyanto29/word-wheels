@@ -1,9 +1,11 @@
 package com.wheelword.game.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -14,14 +16,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wheelword.game.audio.SoundManager
+import com.wheelword.game.theme.BalooFamily
 import com.wheelword.game.theme.GameColors
+import com.wheelword.game.theme.NunitoFamily
 
 /**
  * Settings panel — currently a single SFX toggle. Designed to grow as
@@ -35,59 +37,39 @@ fun SettingsDialog(
 ) {
     var sfxOn by remember { mutableStateOf(soundManager?.sfxEnabled ?: true) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xC8000000))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth(0.86f)
-                .shadow(elevation = 18.dp, shape = RoundedCornerShape(20.dp))
-                .clip(RoundedCornerShape(20.dp))
-                .background(GameColors.CompleteBg)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = "Settings",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            Spacer(Modifier.height(16.dp))
+    ModalShell(onDismiss = onDismiss, widthFraction = 0.82f) {
+        Text(
+            text = "Settings",
+            color = Color.White,
+            fontFamily = BalooFamily,
+            fontSize = 26.sp,
+            fontWeight = FontWeight.ExtraBold,
+        )
+        Spacer(Modifier.height(12.dp))
 
-            SettingRow(
-                title = "Sound effects",
-                subtitle = "Plays a chime when a word lands.",
-                checked = sfxOn,
-                onCheckedChange = { v ->
-                    sfxOn = v
-                    soundManager?.sfxEnabled = v
-                },
-            )
+        SettingRow(
+            title = "Sound effects",
+            subtitle = "Plays a chime when a word lands.",
+            checked = sfxOn,
+            onCheckedChange = { v ->
+                sfxOn = v
+                soundManager?.sfxEnabled = v
+            },
+        )
 
-            // Music slot (placeholder — re-enable when we add music tracks)
-            // SettingRow(title = "Music", subtitle = "Background loop.", …)
+        // Music slot (placeholder — re-enable when we add music tracks)
+        // SettingRow(title = "Music", subtitle = "Background loop.", …)
 
-            Spacer(Modifier.height(20.dp))
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF50A0E6))
-                    .clickable(onClick = onDismiss)
-                    .padding(horizontal = 36.dp, vertical = 12.dp),
-            ) {
-                Text(
-                    text = "Done",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-        }
+        Spacer(Modifier.height(20.dp))
+        CandyButton(
+            text = "Close",
+            onClick = onDismiss,
+            color = GameColors.Blue,
+            colorDeep = GameColors.BlueDeep,
+            fontSize = 17.sp,
+            modifier = Modifier.fillMaxWidth(),
+            verticalPadding = 11.dp,
+        )
     }
 }
 
@@ -108,12 +90,15 @@ private fun SettingRow(
             Text(
                 text = title,
                 color = Color.White,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontFamily = BalooFamily,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
             )
             Text(
                 text = subtitle,
-                color = Color(0xA0FFFFFF),
+                color = GameColors.InkSoft,
+                fontFamily = NunitoFamily,
+                fontWeight = FontWeight.SemiBold,
                 fontSize = 13.sp,
             )
         }
@@ -122,9 +107,9 @@ private fun SettingRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF32C850),
-                uncheckedThumbColor = Color(0xFFCCCCCC),
-                uncheckedTrackColor = Color(0xFF555555),
+                checkedTrackColor = GameColors.Green,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = Color(0x2EFFFFFF),
             ),
         )
     }
